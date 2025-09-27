@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <h2 class="text-3xl font-bold text-gray-800 mb-2">
+            <i class="fas fa-history mr-3 text-blue-600"></i>
+            Search History
+        </h2>
+        <p class="text-gray-600">
+            View and manage your previous search results
+        </p>
+    </div>
+
+    {% if jobs %}
+    <!-- Jobs List -->
+    <div class="space-y-4">
+        {% for job in jobs %}
+        <div class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
+            <div class="flex justify-between items-start mb-4">
+                <div class="flex-1">
+                    <div class="flex items-center space-x-3 mb-2">
+                        <h3 class="text-xl font-semibold text-gray-800">
+                            {{ job.search_query }}
+                        </h3>
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
+                            {% if job.search_type == 'keyword' %}bg-green-100 text-green-800
+                            {% else %}bg-blue-100 text-blue-800{% endif %}">
+                            {% if job.search_type == 'keyword' %}
+                                <i class="fas fa-search mr-1"></i> Keyword
+                            {% else %}
+                                <i class="fas fa-link mr-1"></i> URL
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    <div class="flex items-center space-x-4 text-sm text-gray-500 mb-3">
+                        <span>
+                            <i class="fas fa-calendar mr-1"></i>
+                            {{ job.created_at.strftime('%Y-%m-%d %H:%M') }}
+                        </span>
+                        <span>
+                            <i class="fas fa-clock mr-1"></i>
+                            {% if job.completed_at %}
+                                Completed in {{ ((job.completed_at - job.created_at).total_seconds() / 60)|round(1) }} min
+                            {% else %}
+                                Duration: N/A
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    <div class="flex items-center space-x-2">
+                        {% for platform in job.platforms %}
+                        <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                            {% if platform == 'google' %}
+                                <i class="fab fa-google mr-1"></i>Google
+                            {% elif platform == 'tripadvisor' %}
+                                <i class="fab fa-tripadvisor mr-1"></i>TripAdvisor
+                            {% elif platform == 'booking' %}
+                                <i class="fas fa-bed mr-1"></i>Booking.com
+                            {% endif %}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="text-right">
+                    <div class="text-2xl font-bold text-gray-800 mb-1">
+                        {{ job.review_count or 0 }}
+                    </div>
+                    <div class="text-sm text-gray-500 mb-3">reviews</div>
+
+                    {% if job.avg_rating %}
+                    <div class="flex items-center justify-end mb-3">
+                        <span class="text-sm text-gray-600 mr-1">Avg:</span>
+                        <div class="flex">
+                            {% for i in range(5) %}
+                                {% if i < (job.avg_rating|float) %}
+                                    <i class="fas fa-star text-yellow-400 text-xs"></i>
+                                {% else %}
+                                    <i class="far fa-star text-gray-300 text-xs"></i>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        <span class="text-sm text-gray-600 ml-1">{{ job.avg_rating|round(1) }}</span>
+                    </div>
+                    {% endif %}
+
+                    <!-- Sentiment Summary -->
+                    {% if job.positive_count or job.negative_count or job.neutral_count %}
+                    <div class="flex space-x-1 mb-3">
+                        {% if job.positive_count %}
+                        <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                            😊 {{ job.positive_count }}
+                        </span>
+                        {% endif %}
+                        {% if job.neutral_count %}
+                        <span class="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">
+                            😐 {{ job.neutral_count }}
+                        </span>
+                        {% endif %}
+                        {% if job.negative_count %}
+                        <span class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">
+                            😞 {{ job.negative_count }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <a href="/job/{{ job.id }}"
+                       class="inline-flex items-center px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition">
+                        <i class="fas fa-eye mr-2"></i>
+                        View Details
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination placeholder -->
+    {% if jobs|length >= 20 %}
+    <div class="mt-8 text-center">
+        <p class="text-gray-500">Showing recent 20 searches</p>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <!-- Empty State -->
+    <div class="bg-white rounded-lg shadow p-12 text-center">
+        <i class="fas fa-search text-6xl text-gray-300 mb-4"></i>
+        <h3 class="text-xl font-semibold text-gray-800 mb-2">No searches yet</h3>
+        <p class="text-gray-600 mb-6">Start by performing your first search</p>
+        <a href="/search" class="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+            <i class="fas fa-search mr-2"></i>
+            Start Searching
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

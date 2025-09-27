@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="bg-white rounded-lg shadow-lg p-6">
+        <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">
+            <i class="fas fa-search mr-3 text-blue-600"></i>
+            Search for Reviews
+        </h2>
+
+        <form action="/scrape" method="post" class="space-y-6">
+            <!-- Tipo de búsqueda -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-gray-700">
+                        Search type
+                    </label>
+                    <div class="flex space-x-4">
+                        <label class="flex items-center">
+                            <input type="radio" name="search_type" value="keyword" checked
+                                   class="mr-2 text-blue-600" onchange="togglePlatforms()">
+                            <span>Keyword search</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="search_type" value="url"
+                                   class="mr-2 text-blue-600" onchange="togglePlatforms()">
+                            <span>Direct URL</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Campo de búsqueda -->
+            <div class="space-y-2">
+                <label for="search_query" class="block text-sm font-medium text-gray-700">
+                    Search
+                </label>
+                <input type="text"
+                       name="search_query"
+                       id="search_query"
+                       placeholder="Ex: Hotel Barcelona or https://www.tripadvisor.com/..."
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       required>
+                <div id="url-hint" class="text-sm text-blue-600 hidden">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    For direct URLs, the platform will be automatically detected
+                </div>
+            </div>
+
+            <!-- Plataformas -->
+            <div id="platforms-section" class="space-y-2">
+                <label class="block text-sm font-medium text-gray-700">
+                    Platforms to scan
+                </label>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <label class="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer opacity-50">
+                        <input type="checkbox" name="platforms" value="tripadvisor" disabled
+                               class="mr-3 text-blue-600">
+                        <div class="flex items-center">
+                            <i class="fab fa-tripadvisor text-green-600 mr-2 text-xl"></i>
+                            <span>TripAdvisor</span>
+                            <span class="text-xs text-gray-500 ml-2">(Coming Soon)</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                        <input type="checkbox" name="platforms" value="google" checked
+                               class="mr-3 text-blue-600">
+                        <div class="flex items-center">
+                            <i class="fab fa-google text-red-600 mr-2 text-xl"></i>
+                            <span>Google Reviews</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer opacity-50">
+                        <input type="checkbox" name="platforms" value="booking" disabled
+                               class="mr-3 text-blue-600">
+                        <div class="flex items-center">
+                            <i class="fas fa-bed text-blue-600 mr-2 text-xl"></i>
+                            <span>Booking.com</span>
+                            <span class="text-xs text-gray-500 ml-2">(Coming Soon)</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Opciones avanzadas -->
+            <details class="border rounded-lg p-4">
+                <summary class="cursor-pointer font-medium text-gray-700 mb-4">
+                    <i class="fas fa-cog mr-2"></i>
+                    Advanced Options
+                </summary>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Maximum number of reviews per platform
+                        </label>
+                        <select name="max_reviews" class="w-full px-3 py-2 border rounded-lg">
+                            <option value="10">10 reviews</option>
+                            <option value="25" selected>25 reviews</option>
+                            <option value="50">50 reviews</option>
+                            <option value="100">100 reviews</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Output format
+                        </label>
+                        <select name="output_format" class="w-full px-3 py-2 border rounded-lg">
+                            <option value="html" selected>Web view</option>
+                            <option value="json">JSON</option>
+                            <option value="csv">CSV</option>
+                        </select>
+                    </div>
+                </div>
+            </details>
+
+            <!-- Botón de envío -->
+            <div class="text-center">
+                <button type="submit" id="scrapeButton"
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg transition duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span id="buttonText">
+                        <i class="fas fa-rocket mr-2"></i>
+                        Start Scraping
+                    </span>
+                    <span id="buttonLoading" class="hidden">
+                        <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white inline-block mr-2"></div>
+                        Scraping...
+                    </span>
+                </button>
+            </div>
+        </form>
+
+        <!-- Información -->
+        <div class="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h3 class="font-semibold text-blue-800 mb-2">
+                <i class="fas fa-info-circle mr-2"></i>
+                How it works
+            </h3>
+            <ul class="text-sm text-blue-700 space-y-1">
+                <li>• <strong>Keyword search:</strong> Uses official APIs when available (Google Places API)</li>
+                <li>• <strong>Direct URL:</strong> Web scraping with anti-detection techniques</li>
+                <li>• Official APIs provide faster, more reliable results</li>
+                <li>• Google Places API returns max 5 reviews per place (API limitation)</li>
+                <li>• Respects the terms of use of each platform</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script>
+function togglePlatforms() {
+    const searchType = document.querySelector('input[name="search_type"]:checked').value;
+    const platformsSection = document.getElementById('platforms-section');
+    const urlHint = document.getElementById('url-hint');
+    const searchInput = document.getElementById('search_query');
+
+    if (searchType === 'url') {
+        platformsSection.style.display = 'none';
+        urlHint.classList.remove('hidden');
+        searchInput.placeholder = 'Ex: https://www.tripadvisor.com/Hotel_Review-g123...';
+
+        // Uncheck all platforms when URL mode
+        const platformInputs = document.querySelectorAll('input[name="platforms"]');
+        platformInputs.forEach(input => input.checked = false);
+    } else {
+        platformsSection.style.display = 'block';
+        urlHint.classList.add('hidden');
+        searchInput.placeholder = 'Ex: Hotel Barcelona';
+
+        // Check Google by default for keyword search (TripAdvisor disabled until integration ready)
+        const googleInput = document.querySelector('input[value="google"]');
+        if (googleInput) googleInput.checked = true;
+    }
+}
+
+// Function to show loading state
+function showLoadingState() {
+    const button = document.getElementById('scrapeButton');
+    const buttonText = document.getElementById('buttonText');
+    const buttonLoading = document.getElementById('buttonLoading');
+
+    button.disabled = true;
+    buttonText.classList.add('hidden');
+    buttonLoading.classList.remove('hidden');
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    togglePlatforms();
+
+    // Check if we're returning from a job submission
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('job_started') === 'true') {
+        // Show loading overlay
+        showScrapingLoading();
+
+        // Start polling for job completion
+        startJobPolling();
+
+        // Clean up URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    // Update the form submit to also handle button state
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function() {
+        showLoadingState();
+        showScrapingLoading();
+    });
+});
+
+// Function to poll for job completion
+function startJobPolling() {
+    const pollInterval = setInterval(async function() {
+        try {
+            // Get the most recent completed job
+            const response = await fetch('/api/latest-job-status');
+
+            if (response.ok) {
+                const data = await response.json();
+
+                if (data.status === 'completed' && data.job_id) {
+                    // Job is completed, redirect to results
+                    clearInterval(pollInterval);
+                    hideScrapingLoading();
+                    window.location.href = `/job/${data.job_id}`;
+                } else if (data.status === 'failed') {
+                    // Job failed, hide loading and show error
+                    clearInterval(pollInterval);
+                    hideScrapingLoading();
+                    alert('Scraping job failed. Please try again.');
+                }
+            }
+        } catch (error) {
+            console.error('Error checking job status:', error);
+        }
+    }, 2000); // Check every 2 seconds
+
+    // Stop polling after 3 minutes to prevent infinite requests
+    setTimeout(function() {
+        clearInterval(pollInterval);
+        hideScrapingLoading();
+    }, 180000);
+}
+</script>
+{% endblock %}

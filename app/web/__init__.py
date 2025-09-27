@@ -1,0 +1,1 @@
+# Web interface (templates and static files)

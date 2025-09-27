@@ -1,0 +1,341 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <h2 class="text-3xl font-bold text-gray-800 mb-2">
+            <i class="fas fa-chart-bar mr-3 text-blue-600"></i>
+            Analytics Dashboard
+        </h2>
+        <p class="text-gray-600">
+            Overview of your review scraping activities and sentiment analysis
+        </p>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+        <!-- Total Jobs -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-search text-2xl text-blue-600"></i>
+                    </div>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Total Searches</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ stats.total_jobs }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Reviews -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-comments text-2xl text-green-600"></i>
+                    </div>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Total Reviews</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ stats.total_reviews }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Summaries -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-robot text-2xl text-purple-600"></i>
+                    </div>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">AI Summaries</p>
+                    <p class="text-2xl font-bold text-purple-600">{{ stats.total_summaries }}</p>
+                    {% if stats.total_reviews > 0 %}
+                    <p class="text-xs text-gray-500">{{ ((stats.total_summaries / stats.total_reviews) * 100)|round(1) }}%</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Positive Sentiment -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-smile text-2xl text-green-600"></i>
+                    </div>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Positive Reviews</p>
+                    <p class="text-2xl font-bold text-green-600">{{ stats.sentiment_distribution.positive }}</p>
+                    {% if stats.total_reviews > 0 %}
+                    <p class="text-xs text-gray-500">{{ ((stats.sentiment_distribution.positive / stats.total_reviews) * 100)|round(1) }}%</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Negative Sentiment -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-frown text-2xl text-red-600"></i>
+                    </div>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Negative Reviews</p>
+                    <p class="text-2xl font-bold text-red-600">{{ stats.sentiment_distribution.negative }}</p>
+                    {% if stats.total_reviews > 0 %}
+                    <p class="text-xs text-gray-500">{{ ((stats.sentiment_distribution.negative / stats.total_reviews) * 100)|round(1) }}%</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sentiment Distribution Chart -->
+    {% if stats.total_reviews > 0 %}
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+        <h3 class="text-xl font-bold text-gray-800 mb-6">
+            <i class="fas fa-chart-pie mr-2 text-blue-600"></i>
+            Sentiment Distribution
+        </h3>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Chart Area -->
+            <div class="flex items-center justify-center">
+                <div class="relative w-64 h-64">
+                    <!-- Simple CSS pie chart representation -->
+                    <div class="w-full h-full rounded-full relative overflow-hidden"
+                         style="background: conic-gradient(
+                             #10b981 0deg {{ (stats.sentiment_distribution.positive / stats.total_reviews * 360)|round }}deg,
+                             #6b7280 {{ (stats.sentiment_distribution.positive / stats.total_reviews * 360)|round }}deg {{ ((stats.sentiment_distribution.positive + stats.sentiment_distribution.neutral) / stats.total_reviews * 360)|round }}deg,
+                             #ef4444 {{ ((stats.sentiment_distribution.positive + stats.sentiment_distribution.neutral) / stats.total_reviews * 360)|round }}deg 360deg
+                         );">
+                        <div class="absolute inset-8 bg-white rounded-full flex items-center justify-center">
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-gray-800">{{ stats.total_reviews }}</div>
+                                <div class="text-sm text-gray-500">Total</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Legend -->
+            <div class="flex flex-col justify-center space-y-4">
+                <div class="flex items-center">
+                    <div class="w-4 h-4 bg-green-500 rounded mr-3"></div>
+                    <span class="text-gray-700">Positive: {{ stats.sentiment_distribution.positive }} ({{ ((stats.sentiment_distribution.positive / stats.total_reviews) * 100)|round(1) }}%)</span>
+                </div>
+                <div class="flex items-center">
+                    <div class="w-4 h-4 bg-gray-500 rounded mr-3"></div>
+                    <span class="text-gray-700">Neutral: {{ stats.sentiment_distribution.neutral }} ({{ ((stats.sentiment_distribution.neutral / stats.total_reviews) * 100)|round(1) }}%)</span>
+                </div>
+                <div class="flex items-center">
+                    <div class="w-4 h-4 bg-red-500 rounded mr-3"></div>
+                    <span class="text-gray-700">Negative: {{ stats.sentiment_distribution.negative }} ({{ ((stats.sentiment_distribution.negative / stats.total_reviews) * 100)|round(1) }}%)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sentiment Heatmap -->
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+        <h3 class="text-xl font-bold text-gray-800 mb-6">
+            <i class="fas fa-fire mr-2 text-orange-600"></i>
+            Sentiment Heatmap - Recent Activity
+        </h3>
+
+        {% if jobs %}
+        <div class="space-y-4">
+            {% for job in jobs[:10] %}
+            <div class="border rounded-lg p-4">
+                <div class="flex justify-between items-center mb-3">
+                    <div class="flex items-center space-x-3">
+                        <h4 class="font-medium text-gray-800">{{ job.search_query }}</h4>
+                        <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                            {{ job.created_at.strftime('%m/%d') }}
+                        </span>
+                    </div>
+                    <div class="text-sm text-gray-500">
+                        {{ job.review_count or 0 }} reviews
+                    </div>
+                </div>
+
+                <!-- Sentiment intensity bar -->
+                {% if job.positive_count or job.negative_count or job.neutral_count %}
+                {% set total_sentiment = (job.positive_count or 0) + (job.negative_count or 0) + (job.neutral_count or 0) %}
+                {% if total_sentiment > 0 %}
+                <div class="w-full h-6 bg-gray-200 rounded-lg overflow-hidden flex">
+                    <!-- Positive section -->
+                    {% if job.positive_count %}
+                    <div class="bg-green-500 h-full flex items-center justify-center text-white text-xs font-medium"
+                         style="width: {{ (job.positive_count / total_sentiment * 100)|round(1) }}%"
+                         title="Positive: {{ job.positive_count }} ({{ (job.positive_count / total_sentiment * 100)|round(1) }}%)">
+                        {% if (job.positive_count / total_sentiment * 100) > 15 %}
+                        {{ job.positive_count }}
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Neutral section -->
+                    {% if job.neutral_count %}
+                    <div class="bg-gray-500 h-full flex items-center justify-center text-white text-xs font-medium"
+                         style="width: {{ (job.neutral_count / total_sentiment * 100)|round(1) }}%"
+                         title="Neutral: {{ job.neutral_count }} ({{ (job.neutral_count / total_sentiment * 100)|round(1) }}%)">
+                        {% if (job.neutral_count / total_sentiment * 100) > 15 %}
+                        {{ job.neutral_count }}
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Negative section -->
+                    {% if job.negative_count %}
+                    <div class="bg-red-500 h-full flex items-center justify-center text-white text-xs font-medium"
+                         style="width: {{ (job.negative_count / total_sentiment * 100)|round(1) }}%"
+                         title="Negative: {{ job.negative_count }} ({{ (job.negative_count / total_sentiment * 100)|round(1) }}%)">
+                        {% if (job.negative_count / total_sentiment * 100) > 15 %}
+                        {{ job.negative_count }}
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Sentiment intensity indicator -->
+                <div class="flex justify-between items-center mt-2 text-xs text-gray-600">
+                    <span>Sentiment Distribution</span>
+                    {% set positive_ratio = (job.positive_count or 0) / total_sentiment if total_sentiment > 0 else 0 %}
+                    {% set negative_ratio = (job.negative_count or 0) / total_sentiment if total_sentiment > 0 else 0 %}
+                    {% if positive_ratio > 0.6 %}
+                    <span class="text-green-600 font-medium">😊 Very Positive</span>
+                    {% elif positive_ratio > 0.4 %}
+                    <span class="text-green-500">😊 Mostly Positive</span>
+                    {% elif negative_ratio > 0.6 %}
+                    <span class="text-red-600 font-medium">😞 Very Negative</span>
+                    {% elif negative_ratio > 0.4 %}
+                    <span class="text-red-500">😞 Mostly Negative</span>
+                    {% else %}
+                    <span class="text-gray-600">😐 Mixed/Neutral</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="w-full h-6 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 text-xs">
+                    No sentiment data available
+                </div>
+                {% endif %}
+
+                <!-- Quick link to details -->
+                <div class="mt-3">
+                    <a href="/job/{{ job.id }}" class="text-blue-600 hover:text-blue-800 text-xs">
+                        View detailed analysis →
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-8 text-gray-500">
+            <i class="fas fa-chart-line text-4xl mb-3"></i>
+            <p>No data available for heatmap visualization</p>
+            <p class="text-sm">Start by performing some searches to see sentiment patterns</p>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Recent Activity -->
+    <div class="bg-white rounded-lg shadow-lg p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-bold text-gray-800">
+                <i class="fas fa-clock mr-2 text-blue-600"></i>
+                Recent Activity
+            </h3>
+            <a href="/history" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                View All →
+            </a>
+        </div>
+
+        {% if jobs %}
+        <div class="space-y-4">
+            {% for job in jobs[:5] %}
+            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div class="flex items-center space-x-4">
+                    <div class="flex-shrink-0">
+                        <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            {% if job.search_type == 'keyword' %}
+                                <i class="fas fa-search text-blue-600"></i>
+                            {% else %}
+                                <i class="fas fa-link text-blue-600"></i>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div>
+                        <p class="font-medium text-gray-900">{{ job.search_query }}</p>
+                        <p class="text-sm text-gray-500">{{ job.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-center">
+                        <p class="text-sm font-medium text-gray-900">{{ job.review_count or 0 }}</p>
+                        <p class="text-xs text-gray-500">reviews</p>
+                    </div>
+                    {% if job.positive_count or job.negative_count or job.neutral_count %}
+                    <div class="flex space-x-1">
+                        {% if job.positive_count %}
+                        <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">😊 {{ job.positive_count }}</span>
+                        {% endif %}
+                        {% if job.neutral_count %}
+                        <span class="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">😐 {{ job.neutral_count }}</span>
+                        {% endif %}
+                        {% if job.negative_count %}
+                        <span class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">😞 {{ job.negative_count }}</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    <a href="/job/{{ job.id }}" class="text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-eye"></i>
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-8">
+            <i class="fas fa-chart-bar text-4xl text-gray-300 mb-4"></i>
+            <p class="text-gray-500">No activity yet. Start by performing a search!</p>
+            <a href="/search" class="inline-flex items-center mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                <i class="fas fa-search mr-2"></i>
+                Start Searching
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <a href="/search" class="bg-blue-600 text-white p-6 rounded-lg hover:bg-blue-700 transition text-center">
+            <i class="fas fa-search text-3xl mb-3"></i>
+            <h4 class="font-semibold mb-2">New Search</h4>
+            <p class="text-sm opacity-90">Start a new review scraping search</p>
+        </a>
+        <a href="/history" class="bg-green-600 text-white p-6 rounded-lg hover:bg-green-700 transition text-center">
+            <i class="fas fa-history text-3xl mb-3"></i>
+            <h4 class="font-semibold mb-2">View History</h4>
+            <p class="text-sm opacity-90">Browse all previous searches</p>
+        </a>
+        <div class="bg-gray-600 text-white p-6 rounded-lg text-center opacity-75">
+            <i class="fas fa-download text-3xl mb-3"></i>
+            <h4 class="font-semibold mb-2">Export Data</h4>
+            <p class="text-sm opacity-90">Coming soon</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

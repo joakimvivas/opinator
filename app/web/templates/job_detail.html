@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <!-- Job Header -->
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <div class="flex justify-between items-start mb-4">
+            <div>
+                <h2 class="text-3xl font-bold text-gray-800 mb-2">
+                    <i class="fas fa-file-alt mr-3 text-blue-600"></i>
+                    {{ job.search_query }}
+                </h2>
+                <div class="flex items-center space-x-4 text-sm text-gray-600">
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
+                        {% if job.search_type == 'keyword' %}bg-green-100 text-green-800
+                        {% else %}bg-blue-100 text-blue-800{% endif %}">
+                        {% if job.search_type == 'keyword' %}
+                            <i class="fas fa-search mr-1"></i> Keyword Search
+                        {% else %}
+                            <i class="fas fa-link mr-1"></i> Direct URL
+                        {% endif %}
+                    </span>
+                    <span>
+                        <i class="fas fa-calendar mr-1"></i>
+                        {{ job.created_at.strftime('%Y-%m-%d %H:%M') }}
+                    </span>
+                    {% if job.completed_at %}
+                    <span>
+                        <i class="fas fa-clock mr-1"></i>
+                        Completed in {{ ((job.completed_at - job.created_at).total_seconds() / 60)|round(1) }} minutes
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="text-right">
+                <a href="/history" class="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">
+                    <i class="fas fa-arrow-left mr-2"></i>
+                    Back to History
+                </a>
+            </div>
+        </div>
+
+        <!-- Platforms -->
+        <div class="flex items-center space-x-2 mb-4">
+            <span class="text-sm font-medium text-gray-700">Platforms:</span>
+            {% for platform in job.platforms %}
+            <span class="text-xs bg-gray-100 text-gray-700 px-3 py-1 rounded-full">
+                {% if platform == 'google' %}
+                    <i class="fab fa-google mr-1"></i>Google Reviews
+                {% elif platform == 'tripadvisor' %}
+                    <i class="fab fa-tripadvisor mr-1"></i>TripAdvisor
+                {% elif platform == 'booking' %}
+                    <i class="fas fa-bed mr-1"></i>Booking.com
+                {% endif %}
+            </span>
+            {% endfor %}
+        </div>
+
+        <!-- Job Status -->
+        <div class="flex items-center space-x-2">
+            <span class="text-sm font-medium text-gray-700">Status:</span>
+            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
+                {% if job.status == 'completed' %}bg-green-100 text-green-800
+                {% elif job.status == 'running' %}bg-yellow-100 text-yellow-800
+                {% elif job.status == 'failed' %}bg-red-100 text-red-800
+                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                {% if job.status == 'completed' %}
+                    <i class="fas fa-check-circle mr-1"></i>Completed
+                {% elif job.status == 'running' %}
+                    <i class="fas fa-spinner fa-spin mr-1"></i>Running
+                {% elif job.status == 'failed' %}
+                    <i class="fas fa-times-circle mr-1"></i>Failed
+                {% else %}
+                    <i class="fas fa-clock mr-1"></i>{{ job.status.title() }}
+                {% endif %}
+            </span>
+        </div>
+    </div>
+
+    {% if reviews %}
+    <!-- Statistics Summary -->
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+        <!-- Total Reviews -->
+        <div class="bg-white rounded-lg shadow p-6 text-center">
+            <div class="text-3xl font-bold text-blue-600 mb-2">{{ reviews|length }}</div>
+            <div class="text-sm text-gray-600">Total Reviews</div>
+        </div>
+
+        <!-- Average Rating -->
+        {% set ratings = reviews|selectattr('rating')|map(attribute='rating')|list %}
+        {% if ratings %}
+        <div class="bg-white rounded-lg shadow p-6 text-center">
+            <div class="text-3xl font-bold text-yellow-500 mb-2">{{ (ratings|sum / ratings|length)|round(1) }}</div>
+            <div class="text-sm text-gray-600">Average Rating</div>
+        </div>
+        {% endif %}
+
+        <!-- AI Summaries -->
+        {% set summaries_count = reviews|selectattr('has_summary', 'equalto', true)|list|length %}
+        <div class="bg-white rounded-lg shadow p-6 text-center">
+            <div class="text-3xl font-bold text-purple-600 mb-2">{{ summaries_count }}</div>
+            <div class="text-sm text-gray-600">AI Summaries</div>
+        </div>
+
+        <!-- Sentiment Distribution -->
+        {% set positive_count = reviews|selectattr('sentiment', 'equalto', 'positive')|list|length %}
+        {% set negative_count = reviews|selectattr('sentiment', 'equalto', 'negative')|list|length %}
+        {% set neutral_count = reviews|selectattr('sentiment', 'equalto', 'neutral')|list|length %}
+
+        <div class="bg-white rounded-lg shadow p-6 text-center">
+            <div class="text-3xl font-bold text-green-600 mb-2">{{ positive_count }}</div>
+            <div class="text-sm text-gray-600">Positive</div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6 text-center">
+            <div class="text-3xl font-bold text-red-600 mb-2">{{ negative_count }}</div>
+            <div class="text-sm text-gray-600">Negative</div>
+        </div>
+    </div>
+
+    <!-- Reviews List -->
+    <div class="bg-white rounded-lg shadow-lg mb-6">
+        <div class="bg-gray-50 px-6 py-4 border-b">
+            <h3 class="text-xl font-semibold text-gray-800">
+                <i class="fas fa-comments mr-2"></i>
+                Reviews ({{ reviews|length }})
+            </h3>
+        </div>
+
+        <div class="p-6">
+            <div class="space-y-6">
+                {% for review in reviews %}
+                <!-- Review Card -->
+                {% set sentiment_class = 'border-gray-200' %}
+                {% if review.sentiment == 'positive' %}
+                    {% set sentiment_class = 'border-green-300 bg-green-50' %}
+                {% elif review.sentiment == 'negative' %}
+                    {% set sentiment_class = 'border-red-300 bg-red-50' %}
+                {% elif review.sentiment == 'neutral' %}
+                    {% set sentiment_class = 'border-gray-300 bg-gray-50' %}
+                {% endif %}
+
+                <div class="border-l-4 {{ sentiment_class }} pl-6 py-4 rounded-r-lg">
+                    <!-- Review Header -->
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="flex items-center space-x-3">
+                            <span class="font-medium text-gray-800">
+                                {{ review.author_name or 'Anonymous user' }}
+                            </span>
+
+                            <!-- Platform Badge -->
+                            <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                                {% if review.platform == 'google' %}
+                                    <i class="fab fa-google mr-1"></i>Google
+                                {% elif review.platform == 'tripadvisor' %}
+                                    <i class="fab fa-tripadvisor mr-1"></i>TripAdvisor
+                                {% elif review.platform == 'booking' %}
+                                    <i class="fas fa-bed mr-1"></i>Booking
+                                {% endif %}
+                            </span>
+
+                            <!-- Sentiment Badge -->
+                            {% if review.sentiment %}
+                            <span class="text-xs px-2 py-1 rounded-full
+                                {% if review.sentiment == 'positive' %}bg-green-100 text-green-800
+                                {% elif review.sentiment == 'negative' %}bg-red-100 text-red-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {% if review.sentiment == 'positive' %}😊 Positive
+                                {% elif review.sentiment == 'negative' %}😞 Negative
+                                {% else %}😐 Neutral{% endif %}
+                                {% if review.sentiment_confidence %}
+                                    ({{ (review.sentiment_confidence * 100)|round }}%)
+                                {% endif %}
+                            </span>
+                            {% endif %}
+
+                            <!-- Rating -->
+                            {% if review.rating %}
+                            <div class="flex items-center">
+                                {% for i in range(5) %}
+                                    {% if i < (review.rating|float) %}
+                                        <i class="fas fa-star text-yellow-400 text-sm"></i>
+                                    {% else %}
+                                        <i class="far fa-star text-gray-300 text-sm"></i>
+                                    {% endif %}
+                                {% endfor %}
+                                <span class="ml-1 text-sm text-gray-600">{{ review.rating }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Date -->
+                        <span class="text-sm text-gray-500">
+                            {{ review.scraped_at.strftime('%Y-%m-%d %H:%M') }}
+                        </span>
+                    </div>
+
+                    <!-- Review Text -->
+                    {% if review.review_text %}
+                    <p class="text-gray-700 leading-relaxed">
+                        {{ review.review_text }}
+                    </p>
+                    {% else %}
+                    <p class="text-gray-500 italic">
+                        Rating only (no written review)
+                    </p>
+                    {% endif %}
+
+                    <!-- AI Summary (if available) -->
+                    {% if review.summary and review.has_summary %}
+                    <div class="mt-3 p-3 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg">
+                        <div class="flex items-start">
+                            <i class="fas fa-robot text-blue-600 mt-1 mr-2"></i>
+                            <div>
+                                <p class="text-sm font-medium text-blue-800 mb-1">AI Summary</p>
+                                <p class="text-blue-700 text-sm italic">{{ review.summary }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Keywords and Categories -->
+                    {% if review.keyword_categories %}
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        {% for category_key, category_data in review.keyword_categories.items() %}
+                        <span class="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full border"
+                              style="background-color: {{ category_data.color }}15; color: {{ category_data.color }}; border-color: {{ category_data.color }}30;">
+                            {% if category_data.icon %}
+                            <i class="{{ category_data.icon }} mr-2"></i>
+                            {% endif %}
+                            {{ category_data.category_name }}
+                            <span class="ml-2 bg-white bg-opacity-50 px-1 py-0.5 rounded text-xs">{{ category_data.keywords_found|length }}</span>
+                        </span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    {% if review.extracted_keywords and review.extracted_keywords|length > 0 %}
+                    <div class="mt-3 flex flex-wrap gap-1">
+                        <span class="text-sm text-gray-500 mr-2">Keywords:</span>
+                        {% for keyword in review.extracted_keywords[:6] %}
+                        <span class="bg-gray-100 text-gray-700 px-2 py-1 text-sm rounded-full">
+                            {{ keyword }}
+                        </span>
+                        {% endfor %}
+                        {% if review.extracted_keywords|length > 6 %}
+                        <span class="text-sm text-gray-500">+{{ review.extracted_keywords|length - 6 }} more</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- No Reviews -->
+    <div class="bg-white rounded-lg shadow p-12 text-center">
+        <i class="fas fa-inbox text-6xl text-gray-300 mb-4"></i>
+        <h3 class="text-xl font-semibold text-gray-800 mb-2">No reviews found</h3>
+        <p class="text-gray-600">This job didn't return any reviews</p>
+        {% if job.error_message %}
+        <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p class="text-red-800 text-sm">
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                {{ job.error_message }}
+            </p>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Actions -->
+    <div class="flex justify-center space-x-4 mt-8">
+        <a href="/history" class="inline-flex items-center px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">
+            <i class="fas fa-arrow-left mr-2"></i>
+            Back to History
+        </a>
+        <a href="/search" class="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+            <i class="fas fa-search mr-2"></i>
+            New Search
+        </a>
+        <button class="inline-flex items-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition opacity-50 cursor-not-allowed">
+            <i class="fas fa-download mr-2"></i>
+            Export (Coming Soon)
+        </button>
+    </div>
+</div>
+{% endblock %}

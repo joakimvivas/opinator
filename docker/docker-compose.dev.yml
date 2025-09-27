@@ -1,0 +1,53 @@
+services:
+  # HeadlessX Scraping Engine
+  headlessx:
+    build:
+      context: HeadlessX
+      dockerfile: docker/Dockerfile
+    container_name: opinator-headlessx
+    ports:
+      - "3001:3000"
+    environment:
+      - DOMAIN=localhost
+      - SUBDOMAIN=headlessx
+      - PORT=3000
+      - NODE_ENV=production
+      - UV_THREADPOOL_SIZE=128
+      - NODE_OPTIONS=--max-old-space-size=2048
+      - AUTH_TOKEN=8d29f5a75e74234b3629e1c2eeeb12f0623db9709ee05431527725f2f37401ba
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+      - /tmp:/tmp
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+
+  # PostgreSQL for Opinator
+  opinator-postgres:
+    image: postgres:15-alpine
+    container_name: opinator-postgres
+    environment:
+      - POSTGRES_DB=opinator
+      - POSTGRES_USER=opinator
+      - POSTGRES_PASSWORD=opinator123
+    ports:
+      - "5435:5432"
+    restart: unless-stopped
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+volumes:
+  postgres_data:

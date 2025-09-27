@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # FastAPI Backend
+  opinator-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8000"  # Cambio: 8001 para evitar conflicto con 8000
+    environment:
+      - HEADLESSX_URL=http://headlessx:3000
+      - POSTGRES_HOST=postgres-olyn-reporting
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=opinator
+      - POSTGRES_USER=opinator
+      - POSTGRES_PASSWORD=opinator123
+      - MAX_REVIEWS_PER_PLATFORM=25
+      - CACHE_TTL_SECONDS=3600
+      - DEBUG=false
+    volumes:
+      - ./app:/app
+      - ./data:/app/data
+    depends_on:
+      - headlessx
+    external_links:
+      - postgres-olyn-reporting:postgres
+
+  # HeadlessX Scraping Engine
+  headlessx:
+    image: ghcr.io/saifyxpro/headlessx:latest
+    ports:
+      - "3001:3000"  # Cambio: 3001 para evitar posibles conflictos
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    volumes:
+      - ./headlessx-config:/app/config
+
+  # PostgreSQL para datos específicos de Opinator
+  opinator-postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=opinator
+      - POSTGRES_USER=opinator
+      - POSTGRES_PASSWORD=opinator123
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+volumes:
+  postgres_data:

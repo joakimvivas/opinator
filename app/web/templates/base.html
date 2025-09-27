@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Opinator - Review Scraper{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <nav class="bg-blue-600 text-white p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <a href="/" class="text-2xl font-bold hover:text-blue-200 transition">
+                <i class="fas fa-comments mr-2"></i>
+                Opinator
+            </a>
+            <div class="flex items-center space-x-6">
+                <a href="/" class="hover:text-blue-200 transition">
+                    <i class="fas fa-chart-bar mr-1"></i>
+                    Dashboard
+                </a>
+                <a href="/search" class="hover:text-blue-200 transition">
+                    <i class="fas fa-search mr-1"></i>
+                    Search
+                </a>
+                <a href="/history" class="hover:text-blue-200 transition">
+                    <i class="fas fa-history mr-1"></i>
+                    History
+                </a>
+                <a href="/admin" class="hover:text-blue-200 transition">
+                    <i class="fas fa-cog mr-1"></i>
+                    Admin
+                </a>
+                <div class="text-sm text-blue-200">
+                    Multi-Platform Review Scraper
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto p-6">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="bg-gray-800 text-white p-4 mt-8">
+        <div class="container mx-auto text-center">
+            <p>Opinator - Developed with ♥ in Barcelona, by <a href="https://joakimvivas.com/" target="_blank">joakimvias</a></p>
+        </div>
+    </footer>
+
+    <!-- Loading Overlay for Scraping -->
+    <div id="scrapingLoadingOverlay" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center hidden z-50">
+        <div class="bg-white p-8 rounded-lg shadow-2xl max-w-md w-full mx-4">
+            <div class="text-center">
+                <!-- Multi-platform loading animation -->
+                <div class="flex justify-center space-x-2 mb-6">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <div class="animate-pulse h-8 w-8 bg-green-500 rounded-full delay-75"></div>
+                    <div class="animate-bounce h-8 w-8 bg-red-500 rounded-full delay-150"></div>
+                </div>
+
+                <h3 class="text-xl font-bold text-gray-800 mb-2">
+                    <i class="fas fa-search mr-2 text-blue-600"></i>
+                    Scraping Reviews...
+                </h3>
+
+                <p class="text-gray-600 mb-4">
+                    Extracting reviews from selected platforms
+                </p>
+
+                <!-- Progress steps -->
+                <div class="space-y-2 text-sm text-left">
+                    <div id="step-1" class="flex items-center text-gray-500">
+                        <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                        <span>Connecting to HeadlessX...</span>
+                    </div>
+                    <div id="step-2" class="flex items-center text-gray-400">
+                        <i class="fas fa-clock h-4 w-4 mr-2"></i>
+                        <span>Loading pages with anti-detection...</span>
+                    </div>
+                    <div id="step-3" class="flex items-center text-gray-400">
+                        <i class="fas fa-clock h-4 w-4 mr-2"></i>
+                        <span>Extracting review data...</span>
+                    </div>
+                    <div id="step-4" class="flex items-center text-gray-400">
+                        <i class="fas fa-clock h-4 w-4 mr-2"></i>
+                        <span>Processing results...</span>
+                    </div>
+                </div>
+
+                <div class="mt-6 text-xs text-gray-500">
+                    <p>This may take 30-60 seconds depending on the platform</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Scraping loading functions
+        function showScrapingLoading() {
+            document.getElementById('scrapingLoadingOverlay').classList.remove('hidden');
+
+            // Animate progress steps
+            setTimeout(() => updateStep(2, 'Loading pages with anti-detection...'), 2000);
+            setTimeout(() => updateStep(3, 'Extracting review data...'), 8000);
+            setTimeout(() => updateStep(4, 'Processing results...'), 15000);
+        }
+
+        function hideScrapingLoading() {
+            document.getElementById('scrapingLoadingOverlay').classList.add('hidden');
+        }
+
+        function updateStep(stepNumber, message) {
+            // Mark previous steps as completed
+            for (let i = 1; i < stepNumber; i++) {
+                const step = document.getElementById(`step-${i}`);
+                if (step) {
+                    step.innerHTML = `
+                        <i class="fas fa-check-circle h-4 w-4 mr-2 text-green-600"></i>
+                        <span class="text-green-600">${step.querySelector('span').textContent}</span>
+                    `;
+                }
+            }
+
+            // Update current step
+            const currentStep = document.getElementById(`step-${stepNumber}`);
+            if (currentStep) {
+                currentStep.innerHTML = `
+                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                    <span class="text-gray-700">${message}</span>
+                `;
+                currentStep.classList.remove('text-gray-400');
+                currentStep.classList.add('text-gray-700');
+            }
+        }
+    </script>
+</body>
+</html>

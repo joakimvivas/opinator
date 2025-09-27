@@ -1,0 +1,17 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.13.7/.schema/devbox.schema.json",
+  "packages": [
+    "python@3.12",
+    "python312Packages.pip@latest"
+  ],
+  "shell": {
+    "init_hook": [
+      "python -m venv .venv",
+      ". .venv/bin/activate",
+      "pip install -r requirements.txt"
+    ],
+    "scripts": {
+      "start_app": "uvicorn app.main:app --reload --host 0.0.0.0 --port 8001"
+    }
+  }
+}
