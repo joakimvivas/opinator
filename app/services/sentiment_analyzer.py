@@ -8,6 +8,7 @@ import logging
 from typing import List, Dict, Optional
 import re
 import warnings
+import threading
 
 # Suppress specific transformers warnings
 warnings.filterwarnings("ignore", message=".*return_all_scores.*", category=UserWarning)
@@ -22,6 +23,7 @@ class SentimentAnalyzer:
         self.model_name = model_name
         self.analyzer = None
         self.initialized = False
+        self._lock = threading.Lock()  # Thread safety lock
 
     async def initialize(self):
         """Initialize the model asynchronously"""
@@ -29,7 +31,7 @@ class SentimentAnalyzer:
             return
 
         try:
-            logger.info("🤖 Loading sentiment analysis model...")
+            logger.info("Loading sentiment analysis model...")
 
             # Load model and tokenizer
             tokenizer = AutoTokenizer.from_pretrained(self.model_name)
@@ -44,10 +46,10 @@ class SentimentAnalyzer:
             )
 
             self.initialized = True
-            logger.info("✅ Sentiment analysis model loaded successfully")
+            logger.info("Sentiment analysis model loaded successfully")
 
         except Exception as e:
-            logger.error(f"❌ Failed to load sentiment model: {str(e)}")
+            logger.error(f"Failed to load sentiment model: {str(e)}")
             self.analyzer = None
             self.initialized = False
 
@@ -91,15 +93,50 @@ class SentimentAnalyzer:
                     "error": "Empty text"
                 }
 
-            # Run sentiment analysis
-            results = self.analyzer(clean_text)
+            # Thread-safe sentiment analysis using lock
+            def run_analysis():
+                with self._lock:
+                    return self.analyzer(clean_text)
+
+            # Run in thread pool to avoid blocking asyncio
+            loop = asyncio.get_event_loop()
+            results = await loop.run_in_executor(None, run_analysis)
+
+            # Validate results structure
+            if not results or len(results) == 0:
+                return {
+                    "sentiment": "neutral",
+                    "confidence": 0.0,
+                    "scores": {},
+                    "error": "No results from sentiment analysis"
+                }
 
             # Process results
             scores = {}
             max_score = 0
             predicted_sentiment = "neutral"
 
-            for result in results[0]:  # results[0] contains all scores
+            # Handle both single result and batch result formats
+            try:
+                result_list = results[0] if isinstance(results[0], list) else results
+
+                if not result_list:
+                    return {
+                        "sentiment": "neutral",
+                        "confidence": 0.0,
+                        "scores": {},
+                        "error": "Empty result list"
+                    }
+
+            except (IndexError, TypeError):
+                return {
+                    "sentiment": "neutral",
+                    "confidence": 0.0,
+                    "scores": {},
+                    "error": "Invalid result format"
+                }
+
+            for result in result_list:
                 label = result['label'].lower()
                 score = result['score']
                 scores[label] = score
@@ -129,7 +166,7 @@ class SentimentAnalyzer:
             }
 
         except Exception as e:
-            logger.error(f"❌ Sentiment analysis failed: {str(e)}")
+            logger.error(f"Sentiment analysis failed: {str(e)}")
             return {
                 "sentiment": "neutral",
                 "confidence": 0.0,
@@ -180,7 +217,7 @@ class SentimentAnalyzer:
             }
 
         except Exception as e:
-            logger.error(f"❌ Rating-based sentiment analysis failed: {str(e)}")
+            logger.error(f"Rating-based sentiment analysis failed: {str(e)}")
             return {
                 "sentiment": "neutral",
                 "confidence": 0.0,
@@ -197,43 +234,57 @@ class SentimentAnalyzer:
         analyzed_reviews = []
 
         for review in reviews:
-            review_text = review.get('text', '').strip()
-            rating = review.get('rating')
+            try:
+                review_text = review.get('text', '').strip()
+                rating = review.get('rating')
 
-            enhanced_review = review.copy()
+                enhanced_review = review.copy()
 
-            # Priority: Text analysis first, then rating-based analysis
-            if review_text:
-                # Analyze sentiment from text (most accurate)
-                sentiment_result = await self.analyze_sentiment(review_text)
+                # Priority: Text analysis first, then rating-based analysis
+                if review_text:
+                    # Analyze sentiment from text (most accurate)
+                    sentiment_result = await self.analyze_sentiment(review_text)
+                    enhanced_review.update({
+                        "sentiment": sentiment_result["sentiment"],
+                        "sentiment_confidence": sentiment_result["confidence"],
+                        "sentiment_scores": sentiment_result.get("scores", {}),
+                        "sentiment_error": sentiment_result.get("error"),
+                        "sentiment_method": "text"
+                    })
+                elif rating is not None:
+                    # Fallback to rating-based sentiment analysis
+                    sentiment_result = self.analyze_sentiment_from_rating(rating)
+                    enhanced_review.update({
+                        "sentiment": sentiment_result["sentiment"],
+                        "sentiment_confidence": sentiment_result["confidence"],
+                        "sentiment_scores": sentiment_result.get("scores", {}),
+                        "sentiment_error": sentiment_result.get("error"),
+                        "sentiment_method": "rating"
+                    })
+                else:
+                    # No text or rating available
+                    enhanced_review.update({
+                        "sentiment": None,
+                        "sentiment_confidence": None,
+                        "sentiment_scores": {},
+                        "sentiment_error": "No text or rating to analyze",
+                        "sentiment_method": "none"
+                    })
+
+                analyzed_reviews.append(enhanced_review)
+
+            except Exception as e:
+                logger.error(f"Error processing review: {str(e)}")
+                # Add review with error information
+                enhanced_review = review.copy()
                 enhanced_review.update({
-                    "sentiment": sentiment_result["sentiment"],
-                    "sentiment_confidence": sentiment_result["confidence"],
-                    "sentiment_scores": sentiment_result.get("scores", {}),
-                    "sentiment_error": sentiment_result.get("error"),
-                    "sentiment_method": "text"
-                })
-            elif rating is not None:
-                # Fallback to rating-based sentiment analysis
-                sentiment_result = self.analyze_sentiment_from_rating(rating)
-                enhanced_review.update({
-                    "sentiment": sentiment_result["sentiment"],
-                    "sentiment_confidence": sentiment_result["confidence"],
-                    "sentiment_scores": sentiment_result.get("scores", {}),
-                    "sentiment_error": sentiment_result.get("error"),
-                    "sentiment_method": "rating"
-                })
-            else:
-                # No text or rating available
-                enhanced_review.update({
-                    "sentiment": None,
-                    "sentiment_confidence": None,
+                    "sentiment": "neutral",
+                    "sentiment_confidence": 0.0,
                     "sentiment_scores": {},
-                    "sentiment_error": "No text or rating to analyze",
-                    "sentiment_method": "none"
+                    "sentiment_error": f"Processing error: {str(e)}",
+                    "sentiment_method": "error"
                 })
-
-            analyzed_reviews.append(enhanced_review)
+                analyzed_reviews.append(enhanced_review)
 
         return analyzed_reviews
 
