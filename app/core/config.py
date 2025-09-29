@@ -7,8 +7,18 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Settings:
-    # Database
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://opinator:opinator@localhost:5432/opinator")
+    # Database - Using Supabase for all environments
+    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
+    SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
+    SUPABASE_DB_PASSWORD: str = os.getenv("SUPABASE_DB_PASSWORD", "")
+
+    @property
+    def DATABASE_URL(self) -> str:
+        if self.SUPABASE_URL and self.SUPABASE_DB_PASSWORD:
+            # Extract project ID from Supabase URL
+            project_id = self.SUPABASE_URL.replace("https://", "").replace(".supabase.co", "")
+            return f"postgresql://postgres:{self.SUPABASE_DB_PASSWORD}@db.{project_id}.supabase.co:5432/postgres"
+        return "postgresql://opinator:opinator@localhost:5432/opinator"
 
     # Google Places API
     GOOGLE_PLACES_API_KEY: str = os.getenv("GOOGLE_PLACES_API_KEY", "")
@@ -18,7 +28,12 @@ class Settings:
 
     # HeadlessX
     HEADLESSX_URL: str = os.getenv("HEADLESSX_URL", "http://localhost:8080")
-    HEADLESSX_API_KEY: str = os.getenv("HEADLESSX_API_KEY", "")
+    AUTH_TOKEN: str = os.getenv("AUTH_TOKEN", "")
+
+    # Inngest
+    INNGEST_EVENT_KEY: str = os.getenv("INNGEST_EVENT_KEY", "abcd1234567890abcdef1234567890ab")
+    INNGEST_SIGNING_KEY: str = os.getenv("INNGEST_SIGNING_KEY", "fedcba0987654321fedcba0987654321")
+    INNGEST_API_BASE_URL: str = os.getenv("INNGEST_API_BASE_URL", "http://localhost:8289")
 
     # Application
     DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"

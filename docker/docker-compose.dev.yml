@@ -2,7 +2,7 @@ services:
   # HeadlessX Scraping Engine
   headlessx:
     build:
-      context: HeadlessX
+      context: ../HeadlessX
       dockerfile: docker/Dockerfile
     container_name: opinator-headlessx
     ports:
@@ -34,20 +34,22 @@ services:
           memory: 512M
           cpus: '0.5'
 
-  # PostgreSQL for Opinator
-  opinator-postgres:
-    image: postgres:15-alpine
-    container_name: opinator-postgres
-    environment:
-      - POSTGRES_DB=opinator
-      - POSTGRES_USER=opinator
-      - POSTGRES_PASSWORD=opinator123
+  # Inngest Self-Hosted
+  opinator-inngest:
+    image: inngest/inngest:latest
+    container_name: opinator-inngest
+    command: "inngest start"
     ports:
-      - "5435:5432"
+      - "8288:8288"
+      - "8289:8289"
+    env_file:
+      - ../.env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-
-volumes:
-  postgres_data:
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8288/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

@@ -252,35 +252,23 @@ class UnifiedDatabase:
 
     def __init__(self):
         self.env = FASTAPI_ENV
-        self.local_db = Database() if self.env == "local" else None
-        self.supabase_db = supabase_db if self.env == "production" else None
+        # Always use Supabase regardless of environment
+        self.supabase_db = supabase_db
         self.active_db = None
 
     async def connect(self):
-        """Connect to the appropriate database based on environment"""
+        """Connect to Supabase for all environments"""
         logger.info(f"🌍 Environment: {self.env}")
 
-        if self.env == "production":
-            if self.supabase_db:
-                logger.info("🔗 Connecting to Supabase (Production)")
-                success = await self.supabase_db.connect()
-                if success:
-                    self.active_db = self.supabase_db
-                return success
-            else:
-                logger.error("❌ Supabase not available for production environment")
-                return False
-
-        else:  # local environment
-            if self.local_db:
-                logger.info("🔗 Connecting to Local PostgreSQL (Development)")
-                success = await self.local_db.connect()
-                if success:
-                    self.active_db = self.local_db
-                return success
-            else:
-                logger.error("❌ Local PostgreSQL not available")
-                return False
+        if self.supabase_db:
+            logger.info("🔗 Connecting to Supabase")
+            success = await self.supabase_db.connect()
+            if success:
+                self.active_db = self.supabase_db
+            return success
+        else:
+            logger.error("❌ Supabase not available")
+            return False
 
     async def disconnect(self):
         """Disconnect from active database"""
@@ -333,7 +321,7 @@ class UnifiedDatabase:
 
     def is_supabase(self):
         """Check if we're using Supabase"""
-        return self.env == "production" and self.active_db and hasattr(self.active_db, 'client')
+        return self.active_db and hasattr(self.active_db, 'client')
 
     def get_supabase_client(self):
         """Get Supabase client if available"""

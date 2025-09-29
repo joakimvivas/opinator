@@ -259,41 +259,24 @@ class JobService:
     async def create_scraping_job(search_query: str, search_type: str, platforms: List[str]) -> int:
         """Create a new scraping job"""
         try:
-            # Use environment-specific implementation
-            if hasattr(db, 'pool') and db.pool:
-                # PostgreSQL local
-                async with db.pool.acquire() as connection:
-                    job_id = await connection.fetchval(
-                        """
-                        INSERT INTO scraping_jobs (search_query, search_type, platforms, status, created_at, updated_at)
-                        VALUES ($1, $2, $3, 'pending', NOW(), NOW())
-                        RETURNING id
-                        """,
-                        search_query, search_type, platforms
-                    )
+            # Always use Supabase
+            if db.is_supabase():
+                client = db.get_supabase_client()
+                result = client.table("scraping_jobs").insert({
+                    "search_query": search_query,
+                    "search_type": search_type,
+                    "platforms": platforms,
+                    "status": "pending"
+                }).execute()
+
+                if result.data and len(result.data) > 0:
+                    job_id = result.data[0]["id"]
                     logger.info(f"✅ Created scraping job {job_id}")
                     return job_id
-            else:
-                # Supabase production
-                if db.is_supabase():
-                    client = db.get_supabase_client()
-                    result = client.table("scraping_jobs").insert({
-                        "search_query": search_query,
-                        "search_type": search_type,
-                        "platforms": platforms,
-                        "status": "pending",
-                        "created_at": "now()",
-                        "updated_at": "now()"
-                    }).execute()
-
-                    if result.data and len(result.data) > 0:
-                        job_id = result.data[0]["id"]
-                        logger.info(f"✅ Created scraping job {job_id}")
-                        return job_id
-                    else:
-                        raise Exception("No job ID returned from Supabase")
                 else:
-                    raise Exception("No active database connection")
+                    raise Exception("No job ID returned from Supabase")
+            else:
+                raise Exception("No active database connection")
 
         except Exception as e:
             logger.error(f"❌ Error creating scraping job: {str(e)}")
