@@ -13,6 +13,38 @@
         </p>
     </div>
 
+    <!-- Job Started Notification -->
+    {% if job_started and latest_job %}
+    <div id="job-notification" class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+        <div class="flex items-center">
+            <div class="flex-shrink-0">
+                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <i id="job-status-icon" class="fas fa-spinner fa-spin text-2xl text-blue-600"></i>
+                </div>
+            </div>
+            <div class="ml-4 flex-grow">
+                <h3 class="text-lg font-semibold text-blue-800">
+                    <span id="job-status-text">🚀 Processing your search...</span>
+                </h3>
+                <p class="text-blue-600 mt-1">
+                    <strong>Search:</strong> {{ latest_job.search_query }}
+                    <br><strong>Status:</strong> <span id="job-current-status">{{ latest_job.status }}</span>
+                </p>
+                <div class="mt-3">
+                    <div class="bg-blue-200 rounded-full h-2">
+                        <div id="progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-500" style="width: 10%"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="ml-4">
+                <button onclick="hideNotification()" class="text-blue-400 hover:text-blue-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Statistics Cards -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         <!-- Total Jobs -->
@@ -338,4 +370,81 @@
         </div>
     </div>
 </div>
+
+<script>
+// Job status polling and notification management
+{% if job_started and latest_job %}
+let jobId = {{ latest_job.id }};
+let pollingInterval;
+
+// Status mapping for progress and messages
+const statusSteps = {
+    'pending': { progress: 10, message: '🚀 Starting search...', icon: 'fa-spinner fa-spin' },
+    'running': { progress: 50, message: '⚙️ Processing reviews (scraping, analysis, summaries)...', icon: 'fa-sync fa-spin' },
+    'completed': { progress: 100, message: '✅ Search completed!', icon: 'fa-check-circle' },
+    'failed': { progress: 0, message: '❌ Processing error', icon: 'fa-times-circle' }
+};
+
+function updateJobStatus() {
+    fetch('/api/latest-job-status')
+        .then(response => response.json())
+        .then(data => {
+            if (data && data.job_id === jobId) {
+                const status = data.status;
+                const statusInfo = statusSteps[status] || statusSteps['pending'];
+
+                // Update UI elements
+                document.getElementById('job-current-status').textContent = status;
+                document.getElementById('job-status-text').textContent = statusInfo.message;
+                document.getElementById('progress-bar').style.width = statusInfo.progress + '%';
+
+                // Update icon
+                const icon = document.getElementById('job-status-icon');
+                icon.className = `fas ${statusInfo.icon} text-2xl text-blue-600`;
+
+                // If completed, show success and redirect after delay
+                if (status === 'completed') {
+                    clearInterval(pollingInterval);
+                    document.getElementById('job-notification').classList.remove('bg-blue-50', 'border-blue-200');
+                    document.getElementById('job-notification').classList.add('bg-green-50', 'border-green-200');
+
+                    setTimeout(() => {
+                        window.location.href = `/job/${jobId}`;
+                    }, 2000);
+                }
+
+                // If error, show error state
+                if (status === 'error' || status === 'failed') {
+                    clearInterval(pollingInterval);
+                    document.getElementById('job-notification').classList.remove('bg-blue-50', 'border-blue-200');
+                    document.getElementById('job-notification').classList.add('bg-red-50', 'border-red-200');
+                    document.getElementById('job-status-text').textContent = '❌ Processing error';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error polling job status:', error);
+        });
+}
+
+function hideNotification() {
+    document.getElementById('job-notification').style.display = 'none';
+    if (pollingInterval) {
+        clearInterval(pollingInterval);
+    }
+}
+
+// Start polling every 2 seconds
+updateJobStatus(); // Initial check
+pollingInterval = setInterval(updateJobStatus, 2000);
+
+// Stop polling after 5 minutes (max time)
+setTimeout(() => {
+    if (pollingInterval) {
+        clearInterval(pollingInterval);
+    }
+}, 300000);
+{% endif %}
+</script>
+
 {% endblock %}

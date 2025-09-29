@@ -1,7 +1,8 @@
 """Inngest functions for background processing"""
 
-from .client import inngest
-from ..services import job_service
+import inngest
+from .client import inngest as inngest_client
+from ..services.job_service import job_service
 from ..services.scraping_service import scraping_service
 from ..services.sentiment_analyzer import sentiment_analyzer
 from ..services.keyword_analyzer import keyword_analyzer
@@ -10,9 +11,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-@inngest.create_function(
+@inngest_client.create_function(
     fn_id="process-scraping-job",
-    trigger=inngest.trigger.event(event="scraping/job.created")
+    trigger=inngest.TriggerEvent(event="scraping/job.created")
 )
 async def process_scraping_job(ctx, step):
     """Process a scraping job in the background with multiple steps"""
@@ -27,22 +28,47 @@ async def process_scraping_job(ctx, step):
 
     # Step 1: Initial scraping
     async def scrape_step():
-        await job_service.update_job_status(job_id, "scraping")
+        await job_service.update_job_status(job_id, "running")
         logger.info(f"📡 Scraping reviews for job {job_id}")
 
+        all_reviews = []
         if search_type == "keyword":
-            reviews = await scraping_service.scrape_by_keyword(search_query, platforms)
-        else:
-            reviews = await scraping_service.scrape_by_url(search_query, platforms)
+            # Iterate over each platform
+            for platform in platforms:
+                logger.info(f"🔍 Scraping {platform} for: {search_query}")
 
-        logger.info(f"📊 Scraped {len(reviews)} reviews for job {job_id}")
-        return reviews
+                # Use Google Places API if available for google platform
+                if platform == "google":
+                    from ..core.config import settings
+                    if settings.GOOGLE_PLACES_API_KEY:
+                        logger.info(f"🔗 Using Google Places API for: {search_query}")
+                        result = await scraping_service.get_google_reviews_via_api(search_query)
+                    else:
+                        logger.warning("⚠️ Google Places API key not configured, skipping Google")
+                        continue
+                else:
+                    result = await scraping_service.scrape_by_keyword(search_query, platform)
+
+                if isinstance(result, dict) and 'reviews' in result:
+                    all_reviews.extend(result['reviews'])
+                elif isinstance(result, list):
+                    all_reviews.extend(result)
+        else:
+            # For URL scraping, determine platform from URL
+            for platform in platforms:
+                result = await scraping_service.scrape_by_url(search_query, platform)
+                if isinstance(result, dict) and 'reviews' in result:
+                    all_reviews.extend(result['reviews'])
+                elif isinstance(result, list):
+                    all_reviews.extend(result)
+
+        logger.info(f"📊 Scraped {len(all_reviews)} reviews for job {job_id}")
+        return all_reviews
 
     raw_reviews = await step.run("scrape-reviews", scrape_step)
 
     # Step 2: Sentiment analysis (heavy AI processing)
     async def sentiment_step():
-        await job_service.update_job_status(job_id, "analyzing_sentiment")
         logger.info(f"🤖 Analyzing sentiment for {len(raw_reviews)} reviews")
 
         analyzed = await sentiment_analyzer.analyze_reviews_batch(raw_reviews)
@@ -53,7 +79,6 @@ async def process_scraping_job(ctx, step):
 
     # Step 3: Keyword analysis
     async def keyword_step():
-        await job_service.update_job_status(job_id, "analyzing_keywords")
         logger.info(f"🔍 Analyzing keywords for {len(sentiment_reviews)} reviews")
 
         analyzed = await keyword_analyzer.analyze_reviews_batch(sentiment_reviews)
@@ -64,7 +89,6 @@ async def process_scraping_job(ctx, step):
 
     # Step 4: Generate summaries (very heavy AI processing)
     async def summary_step():
-        await job_service.update_job_status(job_id, "generating_summaries")
         logger.info(f"📝 Generating summaries for {len(keyword_reviews)} reviews")
 
         summarized = review_summarizer.summarize_reviews_batch(keyword_reviews)
@@ -75,14 +99,28 @@ async def process_scraping_job(ctx, step):
 
     # Step 5: Save results and complete job
     async def save_step():
-        await job_service.update_job_status(job_id, "saving_results")
         logger.info(f"💾 Saving results for job {job_id}")
+
+        # Save individual reviews to database
+        from ..core.database import db
+        for review in final_reviews:
+            try:
+                await db.save_review(
+                    job_id=job_id,
+                    platform=review.get('platform', platforms[0] if platforms else 'unknown'),
+                    review_data=review
+                )
+            except Exception as e:
+                logger.error(f"❌ Error saving review: {str(e)}")
+                continue
+
+        logger.info(f"✅ Saved {len(final_reviews)} reviews to database")
 
         # Generate summaries
         sentiment_summary = sentiment_analyzer.get_sentiment_summary(final_reviews)
         keyword_summary = await keyword_analyzer.get_category_summary_for_job(final_reviews)
 
-        # Save to database
+        # Update job statistics
         await job_service.update_job_statistics(job_id, final_reviews)
 
         # Mark as completed
@@ -101,9 +139,9 @@ async def process_scraping_job(ctx, step):
     return result
 
 # Simple test function
-@inngest.create_function(
+@inngest_client.create_function(
     fn_id="hello-world",
-    trigger=inngest.trigger.event(event="test/hello")
+    trigger=inngest.TriggerEvent(event="test/hello")
 )
 async def hello_world(ctx, step):
     """Simple test function to verify Inngest is working"""

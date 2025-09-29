@@ -34,16 +34,15 @@ services:
           memory: 512M
           cpus: '0.5'
 
-  # Inngest Self-Hosted
+  # Inngest Dev Server
   opinator-inngest:
     image: inngest/inngest:latest
     container_name: opinator-inngest
-    command: "inngest start"
+    command: "inngest dev -u http://host.docker.internal:8001/api/inngest --no-discovery"
     ports:
       - "8288:8288"
-      - "8289:8289"
-    env_file:
-      - ../.env
+    environment:
+      - INNGEST_LOG_LEVEL=info
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped

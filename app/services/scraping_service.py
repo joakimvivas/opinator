@@ -524,15 +524,16 @@ class ScrapingService:
 
     @staticmethod
     def format_google_review_date(timestamp):
-        """Format Google review timestamp to readable date"""
+        """Format Google review timestamp to ISO date format for database"""
         if not timestamp:
-            return ""
+            return None
 
         try:
             dt = datetime.fromtimestamp(timestamp)
-            return dt.strftime("%B %Y")
+            # Return ISO format date (YYYY-MM-DD) for database compatibility
+            return dt.strftime("%Y-%m-%d")
         except:
-            return ""
+            return None
 
     @staticmethod
     def parse_review_date(date_str: str):
@@ -557,154 +558,67 @@ class ScrapingService:
     async def save_scraping_results(job_id: int, results: list):
         """Save scraping results to database"""
         try:
-            # Use environment-specific implementation
-            if hasattr(db, 'pool') and db.pool:
-                # PostgreSQL local
-                async with db.pool.acquire() as connection:
-                    for result in results:
-                        platform = result.get('platform')
-                        data = result.get('data', {})
+            # Always use Supabase
+            if db.is_supabase():
+                client = db.get_supabase_client()
 
-                        if data and result.get('status') == 'success':
-                            reviews = data.get('reviews', [])
+                for result in results:
+                    platform = result.get('platform')
+                    data = result.get('data', {})
 
-                            # Analyze sentiment and keywords for all reviews if not already done
-                            if reviews and not reviews[0].get('sentiment'):
-                                logger.info(f"🤖 Analyzing sentiment for {len(reviews)} {platform} reviews...")
-                                reviews = await sentiment_analyzer.analyze_reviews_batch(reviews)
+                    if data and result.get('status') == 'success':
+                        reviews = data.get('reviews', [])
 
-                            if reviews and not reviews[0].get('keywords'):
-                                logger.info(f"🔍 Analyzing keywords for {len(reviews)} {platform} reviews...")
-                                reviews = await keyword_analyzer.analyze_reviews_batch(reviews)
+                        # Analyze sentiment and keywords for all reviews if not already done
+                        if reviews and not reviews[0].get('sentiment'):
+                            logger.info(f"🤖 Analyzing sentiment for {len(reviews)} {platform} reviews...")
+                            reviews = await sentiment_analyzer.analyze_reviews_batch(reviews)
 
-                            # Generate summaries for long reviews if not already done
-                            if reviews and not reviews[0].get('has_summary'):
-                                logger.info(f"📝 Generating summaries for {len(reviews)} {platform} reviews...")
-                                reviews = review_summarizer.summarize_reviews_batch(reviews)
+                        if reviews and not reviews[0].get('keywords'):
+                            logger.info(f"🔍 Analyzing keywords for {len(reviews)} {platform} reviews...")
+                            reviews = await keyword_analyzer.analyze_reviews_batch(reviews)
 
-                            for review in reviews:
-                                # Generate unique review ID and hash
-                                review_content = f"{review.get('author', '')}-{review.get('text', '')}-{review.get('rating', '')}-{platform}"
-                                review_hash = hashlib.md5(review_content.encode()).hexdigest()
+                        # Generate summaries for long reviews
+                        if reviews and not reviews[0].get('has_summary'):
+                            logger.info(f"📝 Generating summaries for {len(reviews)} {platform} reviews...")
+                            reviews = review_summarizer.summarize_reviews_batch(reviews)
 
-                                # Generate clean, unique review_id using platform prefix + hash
-                                review_id = f"{platform}_{review_hash[:16]}"
+                        # Save each review
+                        for review in reviews:
+                            if not review.get('text'):
+                                continue
 
-                                # Parse review date
-                                review_date = None
-                                date_str = review.get('date')
-                                if date_str:
-                                    try:
-                                        # Try to parse different date formats
-                                        if 'September 2025' in str(date_str):
-                                            review_date = datetime(2025, 9, 1).date()
-                                        else:
-                                            review_date = datetime.now().date()
-                                    except:
-                                        review_date = datetime.now().date()
-                                else:
-                                    review_date = datetime.now().date()
+                            review_hash = hashlib.md5(review.get('text', '').encode()).hexdigest()[:16]
+                            review_id = f"{platform}_{review_hash}"
+                            review_date = ScrapingService.parse_review_date(review.get('date', ''))
 
-                                # Check if review already exists
-                                existing = await connection.fetchrow(
-                                    "SELECT id FROM reviews WHERE review_hash = $1",
-                                    review_hash
-                                )
+                            # Check if review exists
+                            existing = client.table("reviews").select("id").eq("review_hash", review_hash).limit(1).execute()
 
-                                if not existing:
-                                    await connection.execute(
-                                        """
-                                        INSERT INTO reviews (
-                                            job_id, platform, rating, review_text, author_name,
-                                            sentiment, sentiment_confidence, sentiment_scores, sentiment_error,
-                                            extracted_keywords, keyword_categories, detected_language, keyword_count,
-                                            summary, has_summary,
-                                            source_url, raw_data, review_hash, review_id, review_date
-                                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
-                                        """,
-                                        job_id,
-                                        platform,
-                                        review.get('rating'),
-                                        review.get('text'),
-                                        review.get('author'),
-                                    review.get('sentiment'),
-                                    review.get('sentiment_confidence'),
-                                    json.dumps(review.get('sentiment_scores', {})),
-                                    review.get('sentiment_error'),
-                                    json.dumps(review.get('keywords', [])),
-                                    json.dumps(review.get('keyword_categories', {})),
-                                    review.get('detected_language', 'en')[:2] if review.get('detected_language') else 'en',
-                                    review.get('keyword_count', 0),
-                                    review.get('summary'),
-                                    review.get('has_summary', False),
-                                    data.get('url'),
-                                    json.dumps(review),
-                                    review_hash,
-                                    review_id,
-                                    review_date
-                                )
-            else:
-                # Supabase production
-                if db.is_supabase():
-                    client = db.get_supabase_client()
-
-                    for result in results:
-                        platform = result.get('platform')
-                        data = result.get('data', {})
-
-                        if data and result.get('status') == 'success':
-                            reviews = data.get('reviews', [])
-
-                            # Process reviews like in PostgreSQL
-                            if reviews and not reviews[0].get('sentiment'):
-                                logger.info(f"🤖 Analyzing sentiment for {len(reviews)} {platform} reviews...")
-                                reviews = await sentiment_analyzer.analyze_reviews_batch(reviews)
-
-                            if reviews and not reviews[0].get('keywords'):
-                                logger.info(f"🔍 Analyzing keywords for {len(reviews)} {platform} reviews...")
-                                reviews = await keyword_analyzer.analyze_reviews_batch(reviews)
-
-                            # Generate summaries for long reviews
-                            if reviews and not reviews[0].get('has_summary'):
-                                logger.info(f"📝 Generating summaries for {len(reviews)} {platform} reviews...")
-                                reviews = review_summarizer.summarize_reviews_batch(reviews)
-
-                            # Save each review
-                            for review in reviews:
-                                if not review.get('text'):
-                                    continue
-
-                                review_hash = hashlib.md5(review.get('text', '').encode()).hexdigest()[:16]
-                                review_id = f"{platform}_{review_hash}"
-                                review_date = ScrapingService.parse_review_date(review.get('date', ''))
-
-                                # Check if review exists (simplified for Supabase)
-                                existing = client.table("reviews").select("id").eq("review_hash", review_hash).limit(1).execute()
-
-                                if not existing.data:
-                                    # Insert new review
-                                    client.table("reviews").insert({
-                                        "job_id": job_id,
-                                        "platform": platform,
-                                        "rating": review.get('rating'),
-                                        "review_text": review.get('text'),
-                                        "author_name": review.get('author'),
-                                        "sentiment": review.get('sentiment'),
-                                        "sentiment_confidence": review.get('sentiment_confidence'),
-                                        "sentiment_scores": review.get('sentiment_scores', {}),
-                                        "sentiment_error": review.get('sentiment_error'),
-                                        "extracted_keywords": review.get('keywords', []),
-                                        "keyword_categories": review.get('keyword_categories', {}),
-                                        "detected_language": review.get('detected_language', 'en')[:2] if review.get('detected_language') else 'en',
-                                        "keyword_count": review.get('keyword_count', 0),
-                                        "summary": review.get('summary'),
-                                        "has_summary": review.get('has_summary', False),
-                                        "source_url": data.get('url'),
-                                        "raw_data": review,
-                                        "review_hash": review_hash,
-                                        "review_id": review_id,
-                                        "review_date": review_date.isoformat() if review_date else None
-                                    }).execute()
+                            if not existing.data:
+                                # Insert new review
+                                client.table("reviews").insert({
+                                    "job_id": job_id,
+                                    "platform": platform,
+                                    "rating": review.get('rating'),
+                                    "review_text": review.get('text'),
+                                    "author_name": review.get('author'),
+                                    "sentiment": review.get('sentiment'),
+                                    "sentiment_confidence": review.get('sentiment_confidence'),
+                                    "sentiment_scores": review.get('sentiment_scores', {}),
+                                    "sentiment_error": review.get('sentiment_error'),
+                                    "extracted_keywords": review.get('keywords', []),
+                                    "keyword_categories": review.get('keyword_categories', {}),
+                                    "detected_language": review.get('detected_language', 'en')[:2] if review.get('detected_language') else 'en',
+                                    "keyword_count": review.get('keyword_count', 0),
+                                    "summary": review.get('summary'),
+                                    "has_summary": review.get('has_summary', False),
+                                    "source_url": data.get('url'),
+                                    "raw_data": review,
+                                    "review_hash": review_hash,
+                                    "review_id": review_id,
+                                    "review_date": review_date.isoformat() if review_date else None
+                                }).execute()
 
             logger.info(f"💾 Saved results for job {job_id}")
 

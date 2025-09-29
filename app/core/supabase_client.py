@@ -285,6 +285,8 @@ class SupabaseDatabase:
                 "keyword_categories": review_data.get("keyword_categories", {}),
                 "detected_language": review_data.get("detected_language", "en"),
                 "keyword_count": review_data.get("keyword_count", 0),
+                "summary": review_data.get("summary"),
+                "has_summary": bool(review_data.get("summary")),
                 "raw_data": review_data
             }
 

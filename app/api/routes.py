@@ -12,6 +12,8 @@ from ..services.keyword_analyzer import keyword_analyzer
 from ..services.job_service import job_service
 from ..services.admin_service import admin_service
 from ..services.scraping_service import scraping_service
+from ..inngest.client import inngest
+import inngest as inngest_module
 
 # Templates configuration
 templates = Jinja2Templates(directory="app/web/templates")
@@ -20,15 +22,23 @@ def setup_routes(app: FastAPI):
     """Setup all application routes"""
 
     @app.get("/", response_class=HTMLResponse)
-    async def dashboard(request: Request):
+    async def dashboard(request: Request, job_started: bool = False):
         """Main dashboard page"""
         try:
             recent_jobs = await job_service.get_recent_jobs(10)
             stats = await job_service.get_dashboard_stats()
+
+            # Get latest job status if a job was just started
+            latest_job = None
+            if job_started:
+                latest_job = await job_service.get_latest_job_status()
+
             return templates.TemplateResponse("dashboard.html", {
                 "request": request,
                 "jobs": recent_jobs,
-                "stats": stats
+                "stats": stats,
+                "job_started": job_started,
+                "latest_job": latest_job
             })
         except Exception as e:
             print(f"❌ Error loading dashboard: {str(e)}")
@@ -92,11 +102,20 @@ def setup_routes(app: FastAPI):
             # Create new job
             job_id = await job_service.create_scraping_job(search_query, search_type, platforms)
 
-            # Start background scraping
-            asyncio.create_task(scraping_service.process_scraping_job(job_id, search_query, search_type, platforms))
+            # Dispatch Inngest event for background processing
+            event = inngest_module.Event(
+                name="scraping/job.created",
+                data={
+                    "job_id": job_id,
+                    "search_query": search_query,
+                    "search_type": search_type,
+                    "platforms": platforms
+                }
+            )
+            await inngest.send(event)
 
-            # Redirect to search page with loading state, then redirect to results when done
-            return RedirectResponse(url="/search?job_started=true", status_code=302)
+            # Redirect to home with job started notification
+            return RedirectResponse(url="/?job_started=true", status_code=302)
 
         except Exception as e:
             print(f"❌ Error starting scraping job: {str(e)}")

@@ -34,6 +34,7 @@ class Settings:
     INNGEST_EVENT_KEY: str = os.getenv("INNGEST_EVENT_KEY", "abcd1234567890abcdef1234567890ab")
     INNGEST_SIGNING_KEY: str = os.getenv("INNGEST_SIGNING_KEY", "fedcba0987654321fedcba0987654321")
     INNGEST_API_BASE_URL: str = os.getenv("INNGEST_API_BASE_URL", "http://localhost:8289")
+    INNGEST_DEV_SERVER_URL: str = os.getenv("INNGEST_DEV_SERVER_URL", "http://localhost:8288")
 
     # Application
     DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
