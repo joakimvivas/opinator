@@ -101,20 +101,47 @@ async def process_scraping_job(ctx, step):
     async def save_step():
         logger.info(f"💾 Saving results for job {job_id}")
 
+        # Generate review IDs and hashes before saving
+        import hashlib
+        for review in final_reviews:
+            # Generate unique hash based on review text
+            review_text = review.get('text', '')
+            review_hash = hashlib.md5(review_text.encode()).hexdigest()[:16]
+            platform = review.get('platform', platforms[0] if platforms else 'unknown')
+
+            # Add hash and ID to review data
+            review['review_hash'] = review_hash
+            review['review_id'] = f"{platform}_{review_hash}"
+
         # Save individual reviews to database
         from ..core.database import db
+        saved_count = 0
+        skipped_count = 0
+
         for review in final_reviews:
             try:
+                # Check if review already exists by hash
+                from ..core.database import db as database
+                if database.is_supabase():
+                    client = database.get_supabase_client()
+                    existing = client.table("reviews").select("id").eq("review_hash", review['review_hash']).limit(1).execute()
+
+                    if existing.data and len(existing.data) > 0:
+                        logger.info(f"⏭️ Skipping duplicate review: {review['review_id']}")
+                        skipped_count += 1
+                        continue
+
                 await db.save_review(
                     job_id=job_id,
                     platform=review.get('platform', platforms[0] if platforms else 'unknown'),
                     review_data=review
                 )
+                saved_count += 1
             except Exception as e:
                 logger.error(f"❌ Error saving review: {str(e)}")
                 continue
 
-        logger.info(f"✅ Saved {len(final_reviews)} reviews to database")
+        logger.info(f"✅ Saved {saved_count} new reviews, skipped {skipped_count} duplicates")
 
         # Generate summaries
         sentiment_summary = sentiment_analyzer.get_sentiment_summary(final_reviews)

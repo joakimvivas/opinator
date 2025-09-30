@@ -271,6 +271,7 @@ class SupabaseDatabase:
                 "job_id": job_id,
                 "platform": platform,
                 "review_id": review_data.get("review_id"),
+                "review_hash": review_data.get("review_hash"),
                 "rating": review_data.get("rating"),
                 "review_text": review_data.get("text"),
                 "author_name": review_data.get("author"),

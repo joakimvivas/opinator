@@ -17,10 +17,11 @@ A comprehensive FastAPI-based platform for scraping, analyzing, and categorizing
 - **Language Detection**: Automatic language identification (English, Spanish, French)
 
 ### **Production-Ready Architecture**
+- **Background Processing**: Inngest-powered async job execution with retry logic
 - **Dual Database Support**: PostgreSQL (local dev) + Supabase (production)
 - **Environment Flexibility**: Seamless switching between local/production
 - **Admin Panel**: Keyword category management with multilingual support
-- **Modern UI**: Responsive web interface with real-time updates
+- **Modern UI**: Responsive web interface with real-time job status updates
 
 ### **Platform Support**
 | Platform | Method | Status | Features |
@@ -36,6 +37,7 @@ A comprehensive FastAPI-based platform for scraping, analyzing, and categorizing
 - **PostgreSQL** (for local development)
 - **Supabase Account** (for production deployment)
 - **Google Cloud Account** (for Google Places API)
+- **Inngest Dev Server** (included in docker-compose)
 - **~1GB RAM** (for AI models)
 
 ## 🛠 Quick Setup
@@ -60,12 +62,12 @@ cp .env.example .env
 
 ### 4. Choose Your Environment
 
-#### **Local Development** (PostgreSQL)
+#### **Local Development** (PostgreSQL + Inngest)
 ```bash
 # Set environment to local
 echo "FASTAPI_ENV=local" > .env
 
-# Start services
+# Start services (PostgreSQL, HeadlessX, Inngest Dev Server)
 docker compose -f docker/docker-compose.dev.yml up -d
 
 # Start FastAPI (in virtual environment)
@@ -75,6 +77,12 @@ source .venv/bin/activate  # Linux/Mac
 pip install -r requirements.txt
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
 ```
+
+**Services Running:**
+- FastAPI: `http://localhost:8001`
+- Inngest Dev Server: `http://localhost:8288`
+- HeadlessX: `http://localhost:3001`
+- PostgreSQL: `localhost:5435`
 
 #### **Production** (Supabase)
 ```bash
@@ -94,7 +102,10 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8001
 ```mermaid
 graph TB
     A[FastAPI Web Interface] --> B[Job Management Service]
-    A --> C[Review Processing Pipeline]
+    A --> N[Inngest Event System]
+
+    N --> O[Background Job Queue]
+    O --> C[Review Processing Pipeline]
 
     B --> D[PostgreSQL Local]
     B --> E[Supabase Production]
@@ -111,6 +122,8 @@ graph TB
     L --> M[BART Large CNN]
 
     style A fill:#e1f5fe
+    style N fill:#fff3cd
+    style O fill:#fff3cd
     style H fill:#f3e5f5
     style I fill:#e8f5e8
     style L fill:#fdf2f8
@@ -149,6 +162,16 @@ GOOGLE_PLACES_API_KEY=your_google_api_key
 AUTH_TOKEN=your_headlessx_auth_token
 ```
 
+#### **Inngest (Background Processing)**
+```bash
+# Dev mode: No keys needed
+INNGEST_DEV_SERVER_URL=http://localhost:8288
+
+# Production: Configure signing keys
+# INNGEST_EVENT_KEY=your_event_key
+# INNGEST_SIGNING_KEY=your_signing_key
+```
+
 ### **Google Places API Setup**
 
 1. **Create Google Cloud Project**
@@ -162,6 +185,28 @@ AUTH_TOKEN=your_headlessx_auth_token
 3. **Generate API Key**
    - Navigate to "Credentials" > "Create Credentials"
    - Copy API key to `.env`
+
+## ⚡ Background Processing with Inngest
+
+### **Async Job Execution**
+- **Event-Driven**: Jobs processed asynchronously in background
+- **Step Functions**: Multi-step pipeline with automatic retries
+- **Real-time Status**: Live job progress tracking in UI
+- **Failure Recovery**: Automatic retry on transient failures
+- **Dev Server**: Built-in UI at `http://localhost:8288` for monitoring
+
+### **Processing Pipeline Steps**
+1. **Scraping**: Extract reviews from Google Places API
+2. **Sentiment Analysis**: Analyze emotion for each review
+3. **Keyword Extraction**: Categorize reviews by topics
+4. **AI Summarization**: Generate summaries for long reviews
+5. **Database Storage**: Save processed reviews to database
+
+### **Inngest Features**
+- **Zero Infrastructure**: No Redis, no message queues needed
+- **Type-Safe**: Full TypeScript/Python SDK support
+- **Observability**: Built-in execution logs and debugging
+- **Local Development**: Dev Server for testing and monitoring
 
 ## 🤖 AI Analysis Features
 
@@ -224,11 +269,17 @@ AUTH_TOKEN=your_headlessx_auth_token
 - **History**: Complete job history with filtering
 
 ### **Pages**
-- `/` - Dashboard with statistics
+- `/` - Dashboard with statistics and real-time job status
 - `/search` - Create new scraping jobs
 - `/job/{id}` - Detailed job results
 - `/history` - Job history
 - `/admin/keywords` - Keyword management
+
+### **Inngest Dev Server UI**
+- `http://localhost:8288` - Monitor background jobs
+- View function executions in real-time
+- Debug failed jobs with full stack traces
+- Manually trigger test events
 
 ## 📱 API Endpoints
 
@@ -313,11 +364,13 @@ results = httpx.get(f"http://localhost:8001/job/{job_id}")
 ## 🎯 Performance & Scalability
 
 ### **Processing Speed**
+- **Job Creation**: Instant (< 100ms)
 - **Google API**: ~1-2 seconds for 5 reviews
 - **Sentiment Analysis**: ~1-2 seconds per review batch
 - **Keyword Analysis**: Real-time database matching
 - **AI Summarization**: ~2-3 seconds per long review (model loads once)
-- **Database**: Optimized queries with proper indexing
+- **Total Processing**: ~10-15 seconds for 5 reviews (end-to-end)
+- **Background Execution**: Non-blocking, user can continue browsing
 
 ### **Resource Usage**
 - **Memory**: ~1GB (AI models including BART Large CNN)
@@ -361,6 +414,27 @@ results = httpx.get(f"http://localhost:8001/job/{job_id}")
    - Verify job ID exists in correct database
    - Check logs for processing errors
 
+5. **Inngest Not Connecting**
+   ```bash
+   # Verify Inngest Dev Server is running
+   docker ps | grep inngest
+
+   # Check Inngest logs
+   docker logs opinator-inngest
+
+   # Verify app registration
+   curl http://localhost:8288/health
+
+   # Check app endpoint
+   curl http://localhost:8001/api/inngest
+   ```
+
+6. **Jobs Stuck in 'pending' Status**
+   - Check Inngest Dev Server UI at `http://localhost:8288`
+   - Verify function registration in Apps section
+   - Check for errors in Inngest container logs
+   - Ensure `INNGEST_DEV_SERVER_URL` is set correctly
+
 ## 🔒 Security Notes
 
 - **API Keys**: Never commit real API keys to version control
@@ -381,15 +455,20 @@ Simply change `FASTAPI_ENV=local` or `FASTAPI_ENV=production` in `.env` and rest
 
 ## 📈 Roadmap
 
+- [x] **Background Processing**: Inngest integration for async jobs ✅
+- [x] **AI Summarization**: BART model for review summaries ✅
+- [x] **Real-time Status**: Live job progress tracking ✅
 - [ ] **Additional Platforms**: TripAdvisor, Booking.com scraping
 - [ ] **Advanced Analytics**: Trend analysis, comparative insights
 - [ ] **Export Features**: PDF reports, CSV exports
-- [ ] **Real-time Updates**: WebSocket-based live updates
+- [ ] **Webhook Support**: Inngest webhooks for external integrations
+- [ ] **Scheduled Jobs**: Cron-based automated scraping
 - [ ] **User Management**: Multi-user support with authentication
 - [ ] **API Rate Limiting**: Enhanced API security and quotas
 
 ## 🙏 Acknowledgments
 
+- **[Inngest](https://www.inngest.com/)** - Background job processing and workflow engine
 - **[HeadlessX](https://github.com/saifyxpro/HeadlessX)** - Advanced web scraping engine
 - **[FastAPI](https://fastapi.tiangolo.com/)** - Modern Python web framework
 - **[Supabase](https://supabase.com/)** - Open-source Firebase alternative
