@@ -275,6 +275,9 @@ INNGEST_DEV_SERVER_URL=http://localhost:8288
 ![Job Results](Opinator-Dashboard-Results.png)
 *Comprehensive review analysis with AI summaries, sentiment scores, and keyword extraction*
 
+#### **Video Demo**
+<div style="position: relative; padding-bottom: 56.25%; height: 0;"><iframe src="https://www.loom.com/embed/89258e1e5685455885a26d3d9817246e?sid=e4b9cd62-a4e6-4905-ae06-3e315a5a5a30" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe></div>
+
 ### **Main Features**
 - **Dashboard**: Overview with job statistics and recent activities
 - **Search Interface**: Keyword or URL-based search with platform selection
