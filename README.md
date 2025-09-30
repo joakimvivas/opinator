@@ -340,7 +340,7 @@ docker compose -f docker/docker-compose.prod.yml up -d
 ### **Web Interface**
 1. Visit `http://localhost:8001`
 2. Click "New Search"
-3. Enter: "HolaCamp Barcelona"
+3. Enter: "W Barcelona"
 4. Select platforms: Google Reviews
 5. Click "Start Scraping"
 6. View results with sentiment analysis
