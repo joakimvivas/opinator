@@ -261,6 +261,20 @@ INNGEST_DEV_SERVER_URL=http://localhost:8288
 
 ## 🖥 Web Interface
 
+### **Screenshots**
+
+#### **Dashboard - Main View**
+![Dashboard Home](Opinator-Dashboard-Home.png)
+*Real-time statistics, sentiment distribution, and recent activity*
+
+#### **Live Job Processing**
+![Job Running](Opinator-Dashboard-RunningJob.png)
+*Real-time progress tracking with polling updates*
+
+#### **Detailed Results View**
+![Job Results](Opinator-Dashboard-Results.png)
+*Comprehensive review analysis with AI summaries, sentiment scores, and keyword extraction*
+
 ### **Main Features**
 - **Dashboard**: Overview with job statistics and recent activities
 - **Search Interface**: Keyword or URL-based search with platform selection
