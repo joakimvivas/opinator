@@ -280,7 +280,7 @@ INNGEST_DEV_SERVER_URL=http://localhost:8288
 *Comprehensive review analysis with AI summaries, sentiment scores, and keyword extraction*
 
 #### **Knowledge Base Chat (RAG)**
-![Knowledge Base Chat](Opinator-Chat-KnowledgeBase.png)
+![Knowledge Base Chat](Opinator-Dashboard-Chat.png)
 *Semantic search across reviews with adjustable similarity threshold and knowledge base integration*
 
 #### **Video Demo**
