@@ -12,6 +12,7 @@ from ..services.keyword_analyzer import keyword_analyzer
 from ..services.job_service import job_service
 from ..services.admin_service import admin_service
 from ..services.scraping_service import scraping_service
+from ..services.vector_service import vector_service
 from ..inngest.client import inngest
 import inngest as inngest_module
 
@@ -290,5 +291,207 @@ def setup_routes(app: FastAPI):
                 "request": request,
                 "error": f"Error loading keywords: {str(e)}"
             })
+
+    # === RAG / KNOWLEDGE BASE ROUTES ===
+
+    @app.get("/chat", response_class=HTMLResponse)
+    async def chat_page(request: Request):
+        """Simple chat interface to query knowledge base"""
+        try:
+            stats = await vector_service.get_collection_stats()
+            return templates.TemplateResponse("chat.html", {
+                "request": request,
+                "stats": stats
+            })
+        except Exception as e:
+            return templates.TemplateResponse("chat.html", {
+                "request": request,
+                "stats": {},
+                "error": f"Error loading chat: {str(e)}"
+            })
+
+    @app.post("/api/chat/query")
+    async def chat_query(request: Request):
+        """Query the knowledge base using semantic search"""
+        try:
+            body = await request.json()
+            query = body.get("query", "").strip()
+            threshold = body.get("threshold", 0.25)  # Default 25% similarity
+
+            if not query:
+                return JSONResponse({
+                    "success": False,
+                    "message": "Query cannot be empty"
+                }, status_code=400)
+
+            # Search in reviews with threshold
+            reviews = await vector_service.search_reviews(
+                query,
+                limit=10,  # Increased limit since we're filtering by score
+                score_threshold=threshold
+            )
+
+            # Search in knowledge base
+            knowledge = await vector_service.search_knowledge(query, limit=3)
+
+            return JSONResponse({
+                "success": True,
+                "query": query,
+                "results": {
+                    "reviews": reviews,
+                    "knowledge": knowledge
+                }
+            })
+
+        except Exception as e:
+            return JSONResponse({
+                "success": False,
+                "message": str(e)
+            }, status_code=500)
+
+    @app.post("/api/knowledge/add")
+    async def add_knowledge(
+        title: str = Form(...),
+        text: str = Form(...),
+        category: str = Form(default="general")
+    ):
+        """Add a knowledge base document"""
+        try:
+            import hashlib
+            doc_id = hashlib.md5(f"{title}{text}".encode()).hexdigest()[:16]
+
+            success = await vector_service.add_knowledge(
+                doc_id=doc_id,
+                text=text,
+                metadata={
+                    "title": title,
+                    "category": category,
+                    "source": "manual"
+                }
+            )
+
+            if success:
+                return JSONResponse({
+                    "success": True,
+                    "message": "Knowledge document added successfully",
+                    "doc_id": doc_id
+                })
+            else:
+                return JSONResponse({
+                    "success": False,
+                    "message": "Failed to add knowledge document"
+                }, status_code=400)
+
+        except Exception as e:
+            return JSONResponse({
+                "success": False,
+                "message": str(e)
+            }, status_code=500)
+
+    @app.get("/api/vector/stats")
+    async def get_vector_stats():
+        """Get vector database statistics"""
+        try:
+            stats = await vector_service.get_collection_stats()
+            return JSONResponse({
+                "success": True,
+                "stats": stats
+            })
+        except Exception as e:
+            return JSONResponse({
+                "success": False,
+                "message": str(e)
+            }, status_code=500)
+
+    @app.post("/api/vector/index-reviews")
+    async def index_existing_reviews():
+        """Index all existing reviews from Supabase to Qdrant"""
+        try:
+            from ..core.database import db
+
+            # Get all reviews from database
+            if db.is_supabase():
+                client = db.get_supabase_client()
+                result = client.table("reviews").select("*").execute()
+                reviews = result.data
+            else:
+                # PostgreSQL query
+                query = """
+                    SELECT id, job_id, platform, review_id, review_text,
+                           author_name, review_date, rating, sentiment,
+                           extracted_keywords, summary
+                    FROM reviews
+                    ORDER BY created_at DESC
+                """
+                reviews = await db.fetch_query(query)
+
+            if not reviews:
+                return JSONResponse({
+                    "success": False,
+                    "message": "No reviews found in database"
+                })
+
+            # Index each review
+            indexed_count = 0
+            skipped_count = 0
+            error_count = 0
+
+            for review in reviews:
+                try:
+                    review_text = review.get("review_text", "")
+                    review_id = review.get("review_id", "")
+
+                    if not review_text or not review_id:
+                        skipped_count += 1
+                        continue
+
+                    # Add to vector database
+                    success = await vector_service.add_review(
+                        review_id=review_id,
+                        review_text=review_text,
+                        metadata={
+                            "job_id": review.get("job_id"),
+                            "platform": review.get("platform"),
+                            "rating": review.get("rating"),
+                            "sentiment": review.get("sentiment"),
+                            "sentiment_confidence": review.get("sentiment_confidence"),
+                            "author": review.get("author_name"),
+                            "date": str(review.get("review_date")) if review.get("review_date") else None,
+                            "helpful_votes": review.get("helpful_votes", 0),
+                            "source_url": review.get("source_url"),
+                            "keywords": review.get("extracted_keywords", []),
+                            "keyword_categories": review.get("keyword_categories", {}),
+                            "detected_language": review.get("detected_language", "en"),
+                            "keyword_count": review.get("keyword_count", 0),
+                            "summary": review.get("summary"),
+                            "has_summary": review.get("has_summary", False)
+                        }
+                    )
+
+                    if success:
+                        indexed_count += 1
+                    else:
+                        error_count += 1
+
+                except Exception as e:
+                    error_count += 1
+                    continue
+
+            return JSONResponse({
+                "success": True,
+                "message": f"Indexing completed",
+                "stats": {
+                    "total": len(reviews),
+                    "indexed": indexed_count,
+                    "skipped": skipped_count,
+                    "errors": error_count
+                }
+            })
+
+        except Exception as e:
+            return JSONResponse({
+                "success": False,
+                "message": str(e)
+            }, status_code=500)
 
 

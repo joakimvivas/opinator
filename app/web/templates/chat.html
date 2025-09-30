@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Base Chat - Opinator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <span class="text-2xl font-bold text-blue-600">💬 Opinator Chat</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/" class="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
+                        <i class="fas fa-home mr-1"></i> Dashboard
+                    </a>
+                    <a href="/search" class="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
+                        <i class="fas fa-search mr-1"></i> New Search
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">
+                <i class="fas fa-brain text-blue-600"></i> Knowledge Base Chat
+            </h1>
+            <p class="text-gray-600">Ask questions about reviews and hotel knowledge</p>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 bg-blue-500 rounded-md p-3">
+                        <i class="fas fa-comments text-white text-2xl"></i>
+                    </div>
+                    <div class="ml-5">
+                        <p class="text-gray-500 text-sm font-medium">Reviews Indexed</p>
+                        <p class="text-2xl font-bold text-gray-900" id="reviewsCount">
+                            <i class="fas fa-spinner fa-spin text-blue-500"></i>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 bg-green-500 rounded-md p-3">
+                        <i class="fas fa-book text-white text-2xl"></i>
+                    </div>
+                    <div class="ml-5">
+                        <p class="text-gray-500 text-sm font-medium">Knowledge Docs</p>
+                        <p class="text-2xl font-bold text-gray-900" id="knowledgeCount">
+                            <i class="fas fa-spinner fa-spin text-green-500"></i>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 bg-purple-500 rounded-md p-3">
+                        <i class="fas fa-vector-square text-white text-2xl"></i>
+                    </div>
+                    <div class="ml-5">
+                        <p class="text-gray-500 text-sm font-medium">Vector Search</p>
+                        <p class="text-lg font-bold text-gray-900">Active</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Chat Interface -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                    <!-- Chat Messages -->
+                    <div id="chatMessages" class="h-96 overflow-y-auto p-6 bg-gray-50">
+                        <div class="text-center text-gray-500 py-8">
+                            <i class="fas fa-comment-dots text-4xl mb-4"></i>
+                            <p>Ask a question to get started!</p>
+                            <p class="text-sm mt-2">Examples:</p>
+                            <div class="mt-3 space-y-1 text-left max-w-md mx-auto">
+                                <p class="text-xs bg-white p-2 rounded">• "What do reviews say about parking?"</p>
+                                <p class="text-xs bg-white p-2 rounded">• "Find complaints about cleanliness"</p>
+                                <p class="text-xs bg-white p-2 rounded">• "Are pets allowed?"</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Input Area -->
+                    <div class="border-t border-gray-200 p-4 bg-white">
+                        <!-- Threshold Slider -->
+                        <div class="mb-3 flex items-center justify-between">
+                            <label class="text-xs text-gray-600">
+                                <i class="fas fa-sliders-h mr-1"></i> Min. Similarity: <span id="thresholdValue" class="font-semibold text-blue-600">25%</span>
+                            </label>
+                            <input
+                                type="range"
+                                id="thresholdSlider"
+                                min="0"
+                                max="100"
+                                value="25"
+                                class="w-48"
+                            >
+                        </div>
+
+                        <form id="chatForm" class="flex space-x-4">
+                            <input
+                                type="text"
+                                id="queryInput"
+                                placeholder="Ask a question..."
+                                class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                required
+                            >
+                            <button
+                                type="submit"
+                                class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                                <i class="fas fa-paper-plane mr-2"></i> Send
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add Knowledge Sidebar -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                        <i class="fas fa-plus-circle text-green-600"></i> Add Knowledge
+                    </h3>
+
+                    <form id="knowledgeForm" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Title</label>
+                            <input
+                                type="text"
+                                name="title"
+                                id="knowledgeTitle"
+                                placeholder="e.g., Check-in Policy"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                                required
+                            >
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                            <select
+                                name="category"
+                                id="knowledgeCategory"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                            >
+                                <option value="general">General</option>
+                                <option value="policies">Policies</option>
+                                <option value="services">Services</option>
+                                <option value="faq">FAQ</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Content</label>
+                            <textarea
+                                name="text"
+                                id="knowledgeText"
+                                placeholder="Enter knowledge content..."
+                                rows="6"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                                required
+                            ></textarea>
+                        </div>
+
+                        <button
+                            type="submit"
+                            class="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                        >
+                            <i class="fas fa-save mr-2"></i> Add to Knowledge Base
+                        </button>
+                    </form>
+
+                    <div id="knowledgeStatus" class="mt-4 hidden"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatMessages = document.getElementById('chatMessages');
+        const chatForm = document.getElementById('chatForm');
+        const queryInput = document.getElementById('queryInput');
+        const knowledgeForm = document.getElementById('knowledgeForm');
+        const thresholdSlider = document.getElementById('thresholdSlider');
+        const thresholdValue = document.getElementById('thresholdValue');
+
+        // Update threshold display
+        thresholdSlider.addEventListener('input', (e) => {
+            thresholdValue.textContent = e.target.value + '%';
+        });
+
+        // Load stats on page load
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/vector/stats');
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('reviewsCount').textContent = data.stats.reviews?.count || 0;
+                    document.getElementById('knowledgeCount').textContent = data.stats.knowledge?.count || 0;
+                }
+            } catch (e) {
+                console.error('Failed to load stats:', e);
+            }
+        }
+
+        // Load stats on page load
+        loadStats();
+
+        // Add message to chat
+        function addMessage(message, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `mb-4 ${isUser ? 'text-right' : 'text-left'}`;
+
+            if (isUser) {
+                messageDiv.innerHTML = `
+                    <div class="inline-block bg-blue-600 text-white rounded-lg px-4 py-2 max-w-lg">
+                        ${message}
+                    </div>
+                `;
+            } else {
+                messageDiv.innerHTML = `
+                    <div class="inline-block bg-white border border-gray-200 rounded-lg px-4 py-2 max-w-lg">
+                        ${message}
+                    </div>
+                `;
+            }
+
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Format search results
+        function formatResults(results) {
+            let html = '<div class="space-y-4">';
+            let hasResults = false;
+
+            // Reviews section
+            if (results.reviews && results.reviews.length > 0) {
+                hasResults = true;
+                html += '<div class="mb-4"><strong class="text-blue-600">📝 Relevant Reviews:</strong></div>';
+                results.reviews.forEach((review, idx) => {
+                    const score = (review.score * 100).toFixed(0);
+                    const sentiment = review.sentiment || 'unknown';
+                    const sentimentColor = sentiment === 'positive' ? 'green' : sentiment === 'negative' ? 'red' : 'gray';
+
+                    html += `
+                        <div class="bg-gray-50 rounded p-3 mb-2 border-l-4 border-${sentimentColor}-500">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs text-gray-500">Match: ${score}%</span>
+                                <span class="text-xs px-2 py-1 rounded bg-${sentimentColor}-100 text-${sentimentColor}-800">
+                                    ${sentiment}
+                                </span>
+                            </div>
+                            <p class="text-sm text-gray-800">${review.text.substring(0, 200)}${review.text.length > 200 ? '...' : ''}</p>
+                            ${review.author ? `<p class="text-xs text-gray-500 mt-1">— ${review.author}</p>` : ''}
+                        </div>
+                    `;
+                });
+            }
+
+            // Knowledge base section
+            if (results.knowledge && results.knowledge.length > 0) {
+                hasResults = true;
+                html += '<div class="mt-4 mb-2"><strong class="text-green-600">📚 Knowledge Base:</strong></div>';
+                results.knowledge.forEach((doc, idx) => {
+                    const score = (doc.score * 100).toFixed(0);
+                    html += `
+                        <div class="bg-green-50 rounded p-3 mb-2 border-l-4 border-green-500">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-semibold text-green-800">${doc.title || 'Document'}</span>
+                                <span class="text-xs text-gray-500">Match: ${score}%</span>
+                            </div>
+                            <p class="text-sm text-gray-800">${doc.text}</p>
+                        </div>
+                    `;
+                });
+            }
+
+            if (!hasResults) {
+                html += '<p class="text-gray-500 italic">No relevant results found. Try a different query or add more knowledge documents.</p>';
+            }
+
+            html += '</div>';
+            return html;
+        }
+
+        // Handle chat form submission
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const query = queryInput.value.trim();
+            if (!query) return;
+
+            // Get threshold value
+            const threshold = parseInt(thresholdSlider.value) / 100; // Convert to 0-1 range
+
+            // Clear the first welcome message if exists
+            if (chatMessages.querySelector('.text-center')) {
+                chatMessages.innerHTML = '';
+            }
+
+            // Add user message
+            addMessage(query, true);
+            queryInput.value = '';
+
+            // Show loading
+            addMessage('<i class="fas fa-spinner fa-spin"></i> Searching...', false);
+
+            try {
+                const response = await fetch('/api/chat/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        query: query,
+                        threshold: threshold
+                    })
+                });
+
+                // Remove loading message
+                chatMessages.removeChild(chatMessages.lastChild);
+
+                if (response.ok) {
+                    const data = await response.json();
+                    addMessage(formatResults(data.results), false);
+                } else {
+                    addMessage('❌ Error searching. Please try again.', false);
+                }
+            } catch (error) {
+                chatMessages.removeChild(chatMessages.lastChild);
+                addMessage('❌ Network error. Please try again.', false);
+            }
+        });
+
+        // Handle knowledge form submission
+        knowledgeForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData(knowledgeForm);
+            const statusDiv = document.getElementById('knowledgeStatus');
+
+            try {
+                const response = await fetch('/api/knowledge/add', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    statusDiv.className = 'mt-4 p-3 bg-green-100 text-green-800 rounded-lg text-sm';
+                    statusDiv.textContent = '✅ ' + data.message;
+                    statusDiv.classList.remove('hidden');
+                    knowledgeForm.reset();
+
+                    // Update knowledge count
+                    const currentCount = parseInt(document.getElementById('knowledgeCount').textContent);
+                    document.getElementById('knowledgeCount').textContent = currentCount + 1;
+
+                    // Hide success message after 3 seconds
+                    setTimeout(() => {
+                        statusDiv.classList.add('hidden');
+                    }, 3000);
+                } else {
+                    statusDiv.className = 'mt-4 p-3 bg-red-100 text-red-800 rounded-lg text-sm';
+                    statusDiv.textContent = '❌ ' + data.message;
+                    statusDiv.classList.remove('hidden');
+                }
+            } catch (error) {
+                statusDiv.className = 'mt-4 p-3 bg-red-100 text-red-800 rounded-lg text-sm';
+                statusDiv.textContent = '❌ Network error. Please try again.';
+                statusDiv.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>

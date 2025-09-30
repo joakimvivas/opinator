@@ -15,6 +15,7 @@ logging.getLogger("transformers.pipelines.text_classification").setLevel(logging
 # Import modules from new structure
 from .core.database import init_database, close_database
 from .services.sentiment_analyzer import sentiment_analyzer
+from .services.vector_service import vector_service
 from .api.routes import setup_routes
 from .inngest.client import inngest as inngest_client
 from .inngest import functions  # Import to register functions
@@ -28,6 +29,14 @@ async def lifespan(app: FastAPI):
     # Initialize sentiment analyzer
     print("🤖 Initializing sentiment analysis...")
     await sentiment_analyzer.initialize()
+
+    # Initialize vector service
+    print("🔮 Initializing vector database...")
+    vector_initialized = await vector_service.initialize()
+    if vector_initialized:
+        print("✅ Vector database ready")
+    else:
+        print("⚠️  Vector database initialization failed (non-critical)")
 
     yield
     # Shutdown

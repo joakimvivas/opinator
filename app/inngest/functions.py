@@ -11,6 +11,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# List of hotels to monitor (can be moved to database later)
+MONITORED_HOTELS = [
+    {"name": "W Barcelona", "platforms": ["google"]},
+    {"name": "Hotel Arts Barcelona", "platforms": ["google"]},
+    # Add more hotels as needed
+]
+
 @inngest_client.create_function(
     fn_id="process-scraping-job",
     trigger=inngest.TriggerEvent(event="scraping/job.created")
@@ -131,11 +138,41 @@ async def process_scraping_job(ctx, step):
                         skipped_count += 1
                         continue
 
+                # Save to database
                 await db.save_review(
                     job_id=job_id,
                     platform=review.get('platform', platforms[0] if platforms else 'unknown'),
                     review_data=review
                 )
+
+                # Index to vector database
+                from ..services.vector_service import vector_service
+                try:
+                    await vector_service.add_review(
+                        review_id=review['review_id'],
+                        review_text=review.get('text', ''),
+                        metadata={
+                            "job_id": job_id,
+                            "platform": review.get('platform'),
+                            "rating": review.get('rating'),
+                            "sentiment": review.get('sentiment'),
+                            "sentiment_confidence": review.get('sentiment_confidence'),
+                            "author": review.get('author'),
+                            "date": review.get('date'),
+                            "helpful_votes": review.get('helpful_votes', 0),
+                            "source_url": review.get('source_url'),
+                            "keywords": review.get('keywords', []),
+                            "keyword_categories": review.get('keyword_categories', {}),
+                            "detected_language": review.get('detected_language', 'en'),
+                            "keyword_count": review.get('keyword_count', 0),
+                            "summary": review.get('summary'),
+                            "has_summary": bool(review.get('summary'))
+                        }
+                    )
+                    logger.info(f"🔮 Indexed review to vector DB: {review['review_id']}")
+                except Exception as vector_error:
+                    logger.warning(f"⚠️ Failed to index review to vector DB: {vector_error}")
+
                 saved_count += 1
             except Exception as e:
                 logger.error(f"❌ Error saving review: {str(e)}")

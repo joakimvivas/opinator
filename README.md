@@ -15,10 +15,12 @@ A comprehensive FastAPI-based platform for scraping, analyzing, and categorizing
 - **AI Summarization**: BART-powered automatic summaries for long reviews (>150 chars)
 - **Statistical Insights**: Comprehensive sentiment distribution and category analysis
 - **Language Detection**: Automatic language identification (English, Spanish, French)
+- **Vector Search & RAG**: Qdrant-powered semantic search with knowledge base chat interface
 
 ### **Production-Ready Architecture**
 - **Background Processing**: Inngest-powered async job execution with retry logic
 - **Dual Database Support**: PostgreSQL (local dev) + Supabase (production)
+- **Vector Database**: Qdrant for semantic search and embeddings storage
 - **Environment Flexibility**: Seamless switching between local/production
 - **Admin Panel**: Keyword category management with multilingual support
 - **Modern UI**: Responsive web interface with real-time job status updates
@@ -35,10 +37,11 @@ A comprehensive FastAPI-based platform for scraping, analyzing, and categorizing
 - **Python 3.12+**
 - **Docker & Docker Compose**
 - **PostgreSQL** (for local development)
+- **Qdrant** (vector database for semantic search)
 - **Supabase Account** (for production deployment)
 - **Google Cloud Account** (for Google Places API)
 - **Inngest Dev Server** (included in docker-compose)
-- **~1GB RAM** (for AI models)
+- **~2GB RAM** (for AI models + embeddings)
 
 ## 🛠 Quick Setup
 
@@ -62,12 +65,12 @@ cp .env.example .env
 
 ### 4. Choose Your Environment
 
-#### **Local Development** (PostgreSQL + Inngest)
+#### **Local Development** (PostgreSQL + Qdrant + Inngest)
 ```bash
 # Set environment to local
 echo "FASTAPI_ENV=local" > .env
 
-# Start services (PostgreSQL, HeadlessX, Inngest Dev Server)
+# Start services (PostgreSQL, Qdrant, HeadlessX, Inngest Dev Server)
 docker compose -f docker/docker-compose.dev.yml up -d
 
 # Start FastAPI (in virtual environment)
@@ -83,6 +86,7 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
 - Inngest Dev Server: `http://localhost:8288`
 - HeadlessX: `http://localhost:3001`
 - PostgreSQL: `localhost:5435`
+- Qdrant: `localhost:6333` (API) / `localhost:6334` (UI)
 
 #### **Production** (Supabase)
 ```bash
@@ -275,6 +279,10 @@ INNGEST_DEV_SERVER_URL=http://localhost:8288
 ![Job Results](Opinator-Dashboard-Results.png)
 *Comprehensive review analysis with AI summaries, sentiment scores, and keyword extraction*
 
+#### **Knowledge Base Chat (RAG)**
+![Knowledge Base Chat](Opinator-Chat-KnowledgeBase.png)
+*Semantic search across reviews with adjustable similarity threshold and knowledge base integration*
+
 #### **Video Demo**
 [![Video demo](Opinator-Dashboard-VideoDemo.png)](https://www.loom.com/share/89258e1e5685455885a26d3d9817246e?sid=2610c058-8d7d-47c8-b898-1573f0816213)
 
@@ -282,6 +290,7 @@ INNGEST_DEV_SERVER_URL=http://localhost:8288
 - **Dashboard**: Overview with job statistics and recent activities
 - **Search Interface**: Keyword or URL-based search with platform selection
 - **Job Details**: Comprehensive review analysis with sentiment/keyword/summary breakdown
+- **Knowledge Base Chat**: AI-powered semantic search across reviews with RAG capabilities
 - **Admin Panel**: Keyword category management
 - **History**: Complete job history with filtering
 
@@ -289,6 +298,7 @@ INNGEST_DEV_SERVER_URL=http://localhost:8288
 - `/` - Dashboard with statistics and real-time job status
 - `/search` - Create new scraping jobs
 - `/job/{id}` - Detailed job results
+- `/chat` - Knowledge base chat with vector search
 - `/history` - Job history
 - `/admin/keywords` - Keyword management
 
@@ -318,6 +328,30 @@ GET /api/latest-job-status
 
 # Dashboard statistics
 GET /api/dashboard-stats
+```
+
+### **Vector Search & RAG Operations**
+```python
+# Query knowledge base with semantic search
+POST /api/chat/query
+{
+    "query": "What do reviews say about parking?",
+    "threshold": 0.25
+}
+
+# Add knowledge base document
+POST /api/knowledge/add
+{
+    "title": "Check-in Policy",
+    "text": "Check-in is from 3 PM...",
+    "category": "policies"
+}
+
+# Get vector database statistics
+GET /api/vector/stats
+
+# Index existing reviews to Qdrant
+POST /api/vector/index-reviews
 ```
 
 ### **Admin Operations**
