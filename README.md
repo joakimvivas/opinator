@@ -506,16 +506,45 @@ Simply change `FASTAPI_ENV=local` or `FASTAPI_ENV=production` in `.env` and rest
 
 ## 📈 Roadmap
 
+### **Completed Features**
 - [x] **Background Processing**: Inngest integration for async jobs ✅
 - [x] **AI Summarization**: BART model for review summaries ✅
 - [x] **Real-time Status**: Live job progress tracking ✅
+
+### **Phase 1: Core Functionality**
 - [ ] **Additional Platforms**: TripAdvisor, Booking.com scraping
-- [ ] **Advanced Analytics**: Trend analysis, comparative insights
 - [ ] **Export Features**: PDF reports, CSV exports
+- [ ] **Advanced Analytics**: Trend analysis, comparative insights
+
+### **Phase 2: Scalability & Performance**
+- [ ] **API Rate Limiting**: Enhanced API security and quotas
+- [ ] **Caching Layer**: Redis integration for frequent queries
+- [ ] **Batch Processing**: Optimized embeddings indexing in Qdrant
+
+### **Phase 3: Advanced Features**
+- [ ] **Temporal Trend Analysis**: Sentiment evolution graphs over time
+- [ ] **Comparative Dashboard**: Multi-establishment comparison
+- [ ] **Automated Alerts**: Notifications for sentiment changes
+- [ ] **Aspect-Based Analysis**: Entity extraction (staff, amenities, services)
+- [ ] **Competitive Intelligence**: Automatic competitor benchmarking
+
+### **Phase 4: Architecture & DevOps**
+- [ ] **CI/CD Pipeline**: GitHub Actions for testing and deployment
+- [ ] **Testing Suite**: Unit and integration tests
+- [ ] **Monitoring**: Prometheus + Grafana metrics
+- [ ] **Enhanced API Docs**: Improved Swagger/OpenAPI documentation
+
+### **Phase 5: Multi-tenancy & Auth**
+- [ ] **User Management**: Multi-user support with authentication
+- [ ] **Roles & Permissions**: Admin, Analyst, Viewer roles
+- [ ] **Workspaces**: Multiple projects per user
 - [ ] **Webhook Support**: Inngest webhooks for external integrations
 - [ ] **Scheduled Jobs**: Cron-based automated scraping
-- [ ] **User Management**: Multi-user support with authentication
-- [ ] **API Rate Limiting**: Enhanced API security and quotas
+
+### **Phase 6: AI & ML Enhancements**
+- [ ] **Predictive Analytics**: ML models for rating forecasting
+- [ ] **Multi-model Sentiment**: Ensemble sentiment analysis
+- [ ] **Custom Categories**: User-defined keyword categories via UI
 
 ## 🙏 Acknowledgments
 
