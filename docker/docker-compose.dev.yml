@@ -38,7 +38,7 @@ services:
   opinator-inngest:
     image: inngest/inngest:latest
     container_name: opinator-inngest
-    command: "inngest dev -u http://host.docker.internal:8001/api/inngest -u http://host.docker.internal:8013/api/inngest --no-discovery"
+    command: "inngest dev -u http://host.docker.internal:8001/api/inngest -u http://host.docker.internal:8013/api/inngest -u http://host.docker.internal:8000/api/inngest --no-discovery"
     ports:
       - "8288:8288"
     environment:
